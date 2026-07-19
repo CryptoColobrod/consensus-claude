@@ -9,9 +9,22 @@ Most review tools score a decision holistically: one pass, one verdict. `consens
 - **Per-thesis decomposition.** An isolated Decomposer agent splits the question into 3–7 atomic decision criteria. A binary "A or B" question becomes independent criteria to evaluate — never a mirror pair like "T1: choose A / T2: choose B."
 - **4-status voting per thesis** — `AGREED` / `AGREED_WEAK` / `DISPUTED` / `NEEDS_CLARIFICATION` — plus a `CONDITION:` tag for conditional agreement ("yes, if this external dependency holds"), instead of bloating the status vocabulary with a 5th state.
 - **Hard-capped rounds.** R1 (parallel, isolated) + a targeted R2 on disputed theses only. Never R3 — two rounds without convergence is a signal to escalate to external review, not to spin the same panel again.
-- **Single-model by design.** The panel's independent perspectives come from role isolation within one apex model — distinct mandates, clean contexts, no cross-talk in R1 — not from paying for three API keys across three providers. An external model (Gemini CLI) enters only as an anti-groupthink tripwire when the panel goes suspiciously unanimous, never as the default mode.
+- **Single-model by design.** The panel's independent perspectives come from role isolation within one apex model — distinct mandates, clean contexts, no cross-talk in R1 — not from paying for three API keys across three providers. An external critic enters only as an anti-groupthink tripwire when the panel goes suspiciously unanimous, and it's provider-agnostic: configure any CLI in one line, or fall back to a copy-paste prompt handoff to whatever model you already have — never the default mode.
 
 **vs. alternatives:** tools like [agent-review-panel](https://github.com/wan-huiyan/agent-review-panel) review a document holistically, as one blob. Multi-model council tools require multiple model providers by default. `consensus-claude`'s unit of judgment is the individual claim, and it needs exactly one model to do it.
+
+**Heads-up on cost:** one full run = ~6-11 calls on your strongest available model (decomposer + 4 role votes + judge, plus targeted round-2 re-votes when theses are disputed). Expect several minutes and meaningful quota use on subscription plans. Built for decisions that deserve it — not for quick questions.
+
+## When to use this skill
+
+Reach for the panel when:
+
+- The decision is complex and multi-faceted — e.g. "monolith → microservices?"
+- You need explicit trade-off exploration — e.g. "Rust vs Go for this service"
+- You're de-risking a choice that's critical or hard to reverse
+- You want to surface unknown unknowns in a plan before committing to it
+
+For quick questions, just ask directly — the panel is deliberately heavyweight.
 
 ---
 
@@ -124,6 +137,8 @@ Full unabridged run: [examples/session-storage-demo.md](examples/session-storage
 
 *Honesty note: the demo's optional targeted R2 was not run — the Judge finalized from R1, handling still-disputed theses through the Unresolved and Prerequisites sections, exactly as the mandate allows. A production run re-votes disputed theses in R2 before finalizing.*
 
+LLM output is non-deterministic — your run on the same question will differ. What the skill guarantees is the structured process (isolated votes, forced disagreement, holism check), not identical prose. Weak verdict? Open an issue and attach the run record.
+
 ---
 
 ## How it works
@@ -151,6 +166,8 @@ Plus two utility agents outside the vote: `Decomposer` (splits the question into
 
 **Output** is an 8-section synthesis: Consensus, Holism check, Trade-offs, Blockers, Prerequisites, Nuances, Unresolved, Devil's advocate.
 
+Every run writes a Verifiable Decision Record — a structured markdown transcript (question → intent → votes → conditions → dissent → verdict) — to `./consensus-runs/`, opt out with `--no-record`. The record is the artifact to attach when reporting a weak verdict.
+
 `SKILL.md` is self-describing — its canonical Protocol block at the top **is** the specification the orchestrator executes. Read that one block and you know the whole system.
 
 ---
@@ -169,6 +186,8 @@ The golden-standard roster above is active by default. An optional shelf of role
 
 Enabling a role means editing the roster list in `SKILL.md`'s Protocol block — markdown is the config, there's no loader and no runtime machinery to route around. Skeptic is the default satisfier of the Adversarial Presence invariant; `Security` and `Scope-cutter` also qualify if you swap Skeptic out.
 
+**Tuning roles:** the agent files ARE the source — editing mandates and operational heuristics in `~/.claude/agents/consensus-claude-*.md` is a supported customization path, not a hack. Keep the vote-format contract (statuses + `CONDITION:` tag + `DISAGREEMENT` block) intact so the Judge can still parse it.
+
 Full role metadata (`when_to_enable` / `conflicts_with`) is in [DESIGN.md · Role Library](DESIGN.md).
 
 ---
@@ -179,12 +198,16 @@ Full role metadata (`when_to_enable` / `conflicts_with`) is in [DESIGN.md · Rol
 
 ```bash
 git clone https://github.com/CryptoColobrod/consensus-claude.git && cd consensus-claude
-mkdir -p ~/.claude/skills/consensus-claude
+mkdir -p ~/.claude/skills/consensus-claude ~/.claude/agents
 cp SKILL.md DESIGN.md ~/.claude/skills/consensus-claude/
-cp agents/*.md ~/.claude/agents/
+cp agents/consensus-claude-*.md ~/.claude/agents/
 ```
 
 > Agent files must land at the **top level** of `~/.claude/agents/` — Claude Code does not scan subdirectories for agent definitions.
+
+> A full panel run makes several calls on your strongest model and takes a few minutes — see the cost note above before your first run.
+
+**Model:** the agents inherit your current session's model — there's no separate Opus key or config to set. The skill works best on the strongest apex model available in your session and degrades gracefully on smaller ones.
 
 **Usage:**
 
@@ -198,10 +221,34 @@ or say "claude consensus" / "consensus panel" in a session.
 
 | Flag | Effect |
 |---|---|
-| `--with-gemini` | Force the external Gemini fallback regardless of unanimity |
+| `--with-external` | Force the external critic regardless of unanimity |
 | `--save-adr` | Write an ADR file for this run (off by default) |
+| `--no-record` | Skip writing the run record file |
 
-**Optional dependency:** the [`gemini` CLI](https://github.com/google-gemini/gemini-cli) on `PATH`, used only as the anti-groupthink fallback when the panel goes fully unanimous on a security-adjacent thesis. The skill degrades gracefully without it — statuses are reported honestly (e.g. `skipped (cli_unavailable)`) rather than failing the run.
+**External critic (optional, any model):** used only as the anti-groupthink fallback when the panel goes fully unanimous on a security-adjacent thesis. Reached via a small ladder: configure any CLI that takes a prompt and prints text (one line in `SKILL.md`'s Protocol block — the [`gemini` CLI](https://github.com/google-gemini/gemini-cli) works out of the box as the default worked example), or skip the install entirely and use the built-in copy-paste handoff — the skill prints the critic prompt for you to paste into any other model you have, then paste the reply back. Decline either way and the run continues gracefully, with the status reported honestly (e.g. `skipped (user_declined)`) rather than failing.
+
+---
+
+## Update / Uninstall
+
+**Update:**
+
+```bash
+cd consensus-claude && git pull
+```
+
+then re-run the two `cp` commands from the install block above.
+
+**Uninstall:**
+
+```bash
+rm -rf ~/.claude/skills/consensus-claude
+rm ~/.claude/agents/consensus-claude-*.md
+```
+
+The `consensus-claude-*` prefix on every agent file makes the second glob safe — it won't touch any unrelated agent files in `~/.claude/agents/`.
+
+**Footprint:** the skill adds 6 prefixed entries to your global agent list (`~/.claude/agents/consensus-claude-*.md`) plus `SKILL.md`/`DESIGN.md` under `~/.claude/skills/consensus-claude/`. Runs also write records to `./consensus-runs/` in whatever working directory you ran the skill from — those are plain markdown files and can be deleted freely at any time.
 
 ---
 
@@ -218,3 +265,5 @@ Output follows the user's language; internal status tokens (`AGREED`, `DISPUTED`
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+`consensus-claude` is a community project, not affiliated with or endorsed by Anthropic.

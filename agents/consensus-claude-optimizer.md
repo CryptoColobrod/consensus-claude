@@ -1,7 +1,6 @@
 ---
 name: consensus-claude-optimizer
 description: Use ONLY by consensus-claude skill orchestrator. Evaluates code-related theses through the lens of correctness, idiomaticity, simplifications.
-model: opus
 competencies: [correctness, readability, idiomaticity, simplification]
 ---
 

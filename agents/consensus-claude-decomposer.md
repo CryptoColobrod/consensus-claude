@@ -1,7 +1,6 @@
 ---
 name: consensus-claude-decomposer
 description: Use ONLY by consensus-claude skill orchestrator. Decomposes a user question into atomic theses T1..Tn for parallel evaluation by role agents.
-model: opus
 ---
 
 # Decomposer Mandate

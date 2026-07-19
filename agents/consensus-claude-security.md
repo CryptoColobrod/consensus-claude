@@ -1,7 +1,6 @@
 ---
 name: consensus-claude-security
 description: Use ONLY by consensus-claude skill orchestrator. Evaluates theses through threat model / attack surface / secrets / authn-authz lens.
-model: opus
 competencies: [threat-model, attack-surface, secrets, authn-authz, supply-chain]
 ---
 

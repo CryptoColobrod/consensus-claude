@@ -1,7 +1,6 @@
 ---
 name: consensus-claude-judge
 description: Use ONLY by consensus-claude skill orchestrator. Aggregates R1 panel votes into a structured verdict; identifies disputed theses for R2; writes final synthesis with trade-offs and devil's advocate section.
-model: opus
 ---
 
 # Judge Mandate

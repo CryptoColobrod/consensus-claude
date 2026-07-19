@@ -1,6 +1,6 @@
 ---
 name: consensus-claude
-description: Multi-perspective consensus via single-model subagents with distinct roles. Use when the user says "claude consensus" / "consensus panel" or invokes /consensus-claude. Claude-only mode by default; pulls in Gemini CLI as anti-groupthink fallback for architecture/security or when all agents agree unanimously.
+description: Multi-perspective consensus via single-model subagents with distinct roles. Use when the user says "claude consensus" / "consensus panel" or invokes /consensus-claude. Claude-only mode by default; pulls in an external critic (any CLI, e.g. Gemini) as anti-groupthink fallback for architecture/security or when all agents agree unanimously.
 ---
 
 # `consensus-claude`
@@ -93,9 +93,23 @@ No separate status is needed for this.
 
 - The Adversarial Presence invariant (see above) — a structural safeguard.
 - `GROUPTHINK_FLAG` — the Judge raises this if ALL theses are AGREED/AGREED_WEAK across ALL roles.
-- Optional external voice: Gemini CLI as a triggered fallback (conditions — see the Gemini fallback step).
-  This is the only point where the skill touches a second model, and only as a hedge against
-  unanimity, not as a default mode (multi-model dialogue is `consensus-protocol`, a separate skill).
+- Optional external voice: a provider-agnostic external critic as a triggered fallback (conditions —
+  see the external-critic step). Reached via a 3-step ladder: (1) a configured CLI command (any
+  provider); (2) if no CLI is configured or it fails, a manual paste-through handoff — the
+  orchestrator prints the same self-contained critic prompt for the user to paste into any other
+  model (web chat included), then paste the reply back; (3) skip, if the user declines. This is the
+  only point where the skill touches a second model, and only as a hedge against unanimity, not as
+  a default mode (multi-model dialogue is `consensus-protocol`, a separate skill).
+
+**External critic command (the one configurable line):** `gemini -p` — default worked example.
+Replace with any CLI that accepts a prompt (as an argument or via stdin) and prints text:
+`codex exec`, `ollama run <model>`, etc. all qualify. Leave unset to always use the manual
+handoff (Rung 2) when the fallback triggers.
+
+### Run record
+
+Every run writes a Verifiable Decision Record by default (`--no-record` to skip) — see the
+dedicated step for the file location and content schema.
 
 ### Scope (boundaries; used in the Triage phase)
 
@@ -124,11 +138,15 @@ The skill activates on any of:
 - User phrases: "claude consensus", "consensus panel", "run a consensus".
 - Slash command: `/consensus-claude <question>` (flags optional, see below).
 
+**Deliberateness gate.** The two trigger paths carry different intent signal:
+- **Slash command** (`/consensus-claude <question>`) is always a deliberate, explicit invocation → proceed directly to Triage. The Step 1 estimate line is sufficient; no confirmation is needed.
+- **Trigger phrase in conversation** ("claude consensus" etc.) may be a casual aside, not a deliberate request for a full panel run → before dispatching any subagent, the orchestrator must print ONE confirm line: `A full panel run costs ~6-11 model calls and takes several minutes. Proceed?` and wait for the user's confirmation before continuing to Triage.
+
 **First action** (mandatory, before any subagent calls): print to the user:
 
 > Using consensus-claude: checking scope applicability.
 
-Immediately after — Triage (Step 0 below).
+Immediately after — for the trigger-phrase path, the deliberateness gate above; then in both cases, Triage (Step 0 below).
 
 ---
 
@@ -136,8 +154,9 @@ Immediately after — Triage (Step 0 below).
 
 | Flag | Effect |
 |---|---|
-| `--with-gemini` | Force the Gemini CLI fallback regardless of GROUPTHINK_FLAG |
+| `--with-external` | Force the external critic regardless of unanimity |
 | `--save-adr` | Save an ADR even for a standard run (by default no ADR is written) |
+| `--no-record` | Skip writing the run record file |
 
 Unknown flags: print a warning `⚠️ Unknown flag: <name>, continuing.` and don't stop.
 
@@ -164,15 +183,17 @@ Check against Scope (see Protocol · Scope). This is an instruction to the orche
 
 ### Step 1 — Print classification line
 
-Immediately after the greeting and successful Triage, print the classification line:
+Immediately after the greeting and successful Triage, print the classification line, extended with an upfront cost estimate so the user sees the cost before any subagent is dispatched:
 
 ```
-🧠 consensus-claude · Panel: <active roster> (+Decomposer +Judge)
+🧠 consensus-claude · Panel: <active roster> (+Decomposer +Judge) · ~6-11 model calls · several minutes
 ```
 
-Where `<active roster>` is the list of roles from Protocol · Roster (dynamic, not a literal in this file).
+Where `<active roster>` is the list of roles from Protocol · Roster (dynamic, not a literal in this file). The `~6-11 model calls` figure is fixed: 6 = R1 minimum (1 Decomposer + 4 votes + 1 Judge pass); 11 = with a full targeted R2 (+4 re-votes +1 additional Judge pass).
 
-Save the user's parsed flags (`--with-gemini`, `--save-adr`) for use in later steps.
+(For the trigger-phrase path, this line is printed only after the user has already confirmed via the Trigger section's deliberateness gate — it is not itself the confirmation.)
+
+Save the user's parsed flags (`--with-external`, `--save-adr`, `--no-record`) for use in later steps.
 
 ### Step 2 — Decomposer dispatch
 
@@ -181,9 +202,7 @@ Call ONE subagent:
 ```
 Agent(
   subagent_type="consensus-claude-decomposer",
-  description="Decompose into theses",
-  model="opus",
-  prompt="Decompose: <verbatim user question>"
+  description="Decompose into theses",  prompt="Decompose: <verbatim user question>"
 )
 ```
 
@@ -223,7 +242,7 @@ T2: <text>
 Tn: <text>
 ```
 
-(The `model: opus` parameter is set in the agent definitions themselves; no need to pass it in the Agent call.)
+(No `model` parameter is passed — role agents inherit the session's model, per Protocol · Model.)
 
 Wait for all roster subagents to return. Each returns:
 - **Block 1:** line-by-line votes `T<n>: <STATUS> [comment]` (comment may contain `CONDITION: <...>`, see Protocol · Status vocabulary).
@@ -238,9 +257,7 @@ Call ONE subagent:
 ```
 Agent(
   subagent_type="consensus-claude-judge",
-  description="Aggregate R1 votes",
-  model="opus",
-  prompt="Phase A. Original question: <q>. Canonical Intent: <intent>. Theses: <T1..Tn full text>. R1 votes:\n\nOptimizer:\n<full Optimizer output>\n\nSkeptic:\n<full Skeptic output>\n\nSecurity:\n<full Security output>\n\nMaintainability-advocate:\n<full Maintainability-advocate output>"
+  description="Aggregate R1 votes",  prompt="Phase A. Original question: <q>. Canonical Intent: <intent>. Theses: <T1..Tn full text>. R1 votes:\n\nOptimizer:\n<full Optimizer output>\n\nSkeptic:\n<full Skeptic output>\n\nSecurity:\n<full Security output>\n\nMaintainability-advocate:\n<full Maintainability-advocate output>"
 )
 ```
 
@@ -254,20 +271,20 @@ Parse the Judge's output as a `ROUND_SUMMARY`:
 
 Save this data — needed in Steps 5–8.
 
-### Step 5 — Gemini fallback decision
+### Step 5 — External critic decision
 
 Trigger condition (fires if AT LEAST ONE is met):
 
 1. `GROUPTHINK_FLAG == true` **AND** at least one thesis mentions security-adjacent terms: `auth`, `authn`, `authz`, `secret`, `token`, `pii`, `credential`, `credentials`, `encryption`, `encrypt`, `decrypt` (case-insensitive substring match against thesis text).
-2. The user passed the `--with-gemini` flag.
+2. The user passed the `--with-external` flag.
 
-If neither condition is met → skip this step, set `gemini_status = not_required`, go to Step 6.
+If neither condition is met → skip this step, set `external_status = not_required`, go to Step 6.
 
 (See Protocol · Anti-groupthink — this is the only point where the skill touches a second model, and only as a hedge, not a default mode.)
 
-**If the fallback fires — run a bash call via the Bash tool:**
+**If the fallback fires, walk the 3-step ladder below.** The critic prompt and the parsing regex are shared by both the CLI path and the manual path — build the prompt once, reuse it for whichever rung applies.
 
-Prompt for the CLI:
+Prompt for the external critic (used by both the CLI path and the manual path):
 
 ```
 You are an external critic. For each thesis below, return ONE line in EXACTLY this format:
@@ -281,20 +298,32 @@ T2: <thesis text>
 ...
 ```
 
-Command:
+Parsing regex (applied to CLI stdout AND to a pasted manual reply, identically): `^T[0-9]+: (AGREED|AGREED_WEAK|DISPUTED|NEEDS_CLARIFICATION)( .*)?$`
+
+**Rung 1 — configured CLI.** The Protocol block's configurable external-critic command line defines the CLI to invoke (default worked example: `gemini -p`). Any CLI that accepts a prompt (as an argument or via stdin) and prints text qualifies — `codex exec`, `ollama run <model>`, etc. Run it via the Bash tool:
 
 ```bash
-timeout 30s gemini -p "<prompt>" 2>/dev/null
+timeout 30s <configured command> "<prompt>" 2>/dev/null
 ```
 
 Handle exit codes:
-- **0** → parse stdout. Expected format: one line per thesis, regex `^T[0-9]+: (AGREED|AGREED_WEAK|DISPUTED|NEEDS_CLARIFICATION)( .*)?$`. Set `gemini_status = triggered`.
-- **42** → invalid input (empty/malformed prompt). Log `gemini_invalid_input`. Set `gemini_status = invalid_input`. Continue without Gemini.
-- **any other non-zero / timeout** → log `gemini_cli_unavailable`. Set `gemini_status = cli_unavailable`. Continue without Gemini.
+- **0** → parse stdout with the regex above. If it produces at least one valid line → set `external_status = triggered (cli)`. If nothing parses → set `external_status = invalid_output`, continue without the critic (do not fall through to Rung 2 — a CLI that ran but produced garbage is a parsing failure, not an availability failure).
+- **any non-zero / timeout / binary not found** → the CLI is unavailable. Fall through to Rung 2.
+- **no command configured at all** → skip straight to Rung 2.
 
-**Cross-language note:** if the user wrote in a non-English language, Gemini will still return English output. This is fine for parsing. The Judge translates comments into the user's language during synthesis in Step 7.
+**Rung 2 — manual handoff.** Print the exact critic prompt from above to the user, followed by:
 
-**Gemini's effect on R2 scope:** if Gemini brought back at least one `DISPUTED` on a thesis that R1 had settled as `AGREED` — add that thesis to `DISPUTED_THESES` for R2 (even if the entire roster was unanimous).
+> Paste this into any other model you have (web chat is fine), then paste its reply back — or reply "skip".
+
+Wait for the user's next message.
+- If the user pastes a reply → parse it with the SAME regex as the CLI path. If it produces at least one valid line → set `external_status = triggered (manual)`. If nothing parses → set `external_status = invalid_output`, continue without the critic.
+- If the user replies "skip" (or equivalent decline) → set `external_status = skipped (user_declined)`, continue without the critic.
+
+**Rung 3 — skip.** Reached only via an explicit user decline in Rung 2. `external_status = skipped (user_declined)`, run continues (graceful degradation as before).
+
+**Cross-language note:** the external model may reply in another language — statuses parse the same regardless (the format is a fixed token, not prose). The Judge translates comments into the user's language during synthesis in Step 7.
+
+**External critic's effect on R2 scope:** if the critic brought back at least one `DISPUTED` on a thesis that R1 had settled as `AGREED` — add that thesis to `DISPUTED_THESES` for R2 (even if the entire roster was unanimous).
 
 ### Step 6 — R2 dispatch (only DISPUTED theses)
 
@@ -307,7 +336,7 @@ Original question: <verbatim user question>
 
 Canonical Intent: <text from Step 2>
 
-You participated in R1. Here are the OTHER panel members' R1 positions on the DISPUTED theses (and Gemini's verdict if present).
+You participated in R1. Here are the OTHER panel members' R1 positions on the DISPUTED theses (and the external critic's verdict if present).
 
 Panel positions from R1:
 Optimizer (on disputed):
@@ -318,9 +347,9 @@ Security (on disputed):
 <...>
 Maintainability-advocate (on disputed):
 <...>
-<if Gemini fired, add:>
-Gemini (external critic):
-<Gemini's lines for disputed theses only>
+<if the external critic fired, add:>
+External critic:
+<external critic's lines for disputed theses only>
 
 DISPUTED theses to re-evaluate (only these — others are settled):
 T<n>: <text>
@@ -338,9 +367,7 @@ Call the Judge a second time:
 ```
 Agent(
   subagent_type="consensus-claude-judge",
-  description="Final synthesis",
-  model="opus",
-  prompt="Phase B+C. Original question: <q>. Canonical Intent: <intent>. Theses: <T1..Tn full text>. R1 votes:\n<full roster + Gemini if it ran>\n\nR2 votes (disputed only):\n<full roster on disputed theses>"
+  description="Final synthesis",  prompt="Phase B+C. Original question: <q>. Canonical Intent: <intent>. Theses: <T1..Tn full text>. R1 votes:\n<full roster + external critic if it ran>\n\nR2 votes (disputed only):\n<full roster on disputed theses>"
 )
 ```
 
@@ -359,14 +386,14 @@ The template below is shown in English as the reference; render it in the user's
 ```
 🧠 consensus-claude
 Panel: <active roster>
-Gemini fallback: <triggered|skipped|invalid_input|cli_unavailable|not_required>
+External critic: <triggered (cli)|triggered (manual)|skipped (user_declined)|invalid_output|not_required>
 
 Round 1/2:
   Agreed: <list of thesis numbers from Judge Phase A AGREED>
   Disputed: <list of thesis numbers from DISPUTED_THESES>
   AGREED_WEAK nuances: <list of thesis numbers from AGREED_WEAK_THESES>
-  <if Gemini fired:>
-  Gemini brought: <list of theses where it returned DISPUTED + brief Gemini comments, translated into the user's language if needed>
+  <if the external critic fired:>
+  External critic brought: <list of theses where it returned DISPUTED + brief comments, translated into the user's language if needed>
 
 <if R2 ran:>
 Round 2/2 (disputed only):
@@ -374,17 +401,55 @@ Round 2/2 (disputed only):
   ...
 
 <Judge Phase C output verbatim — sections ✅ Consensus / 🔗 Holism check / 🔀 Trade-offs (value-tensions) / 🚫 Blockers (error-catches) / 📎 Prerequisites (conditions) / ⚠️ Nuances / ❓ Unresolved / 😈 Devil's advocate>
+
+Run record: <./consensus-runs/<file>.md | skipped (--no-record)>
 ```
 
-Mapping `gemini_status → Output line`:
-- `triggered` → `triggered (<reason: groupthink+security | --with-gemini>)`
+Mapping `external_status → Output line`:
 - `not_required` → `not_required`
-- `invalid_input` → `skipped (invalid_input)`
-- `cli_unavailable` → `skipped (cli_unavailable)`
+- `triggered (cli)` → `triggered (cli — <reason: groupthink+security | --with-external>)`
+- `triggered (manual)` → `triggered (manual — <reason: groupthink+security | --with-external>)`
+- `skipped (user_declined)` → `skipped (user_declined)`
+- `invalid_output` → `skipped (invalid_output)`
 
 If `Round 2/2` didn't run (early finalize) — omit the section entirely, print nothing about R2.
 
-### Step 9 — ADR file generation
+### Step 9 — Verifiable Decision Record
+
+ON by default; opt out with `--no-record` (see Flags). Rationale: this record is the product's auditability story — the artifact to attach when reporting a weak or disputed verdict, since it lets anyone re-derive the synthesis from the raw votes without re-running the panel.
+
+If `--no-record` was passed → skip this step silently, and print `Run record: skipped (--no-record)` in Step 8's output (already covered by the template above).
+
+Otherwise, write a structured markdown transcript to `./consensus-runs/YYYY-MM-DD-<slug>.md` relative to cwd (create the `consensus-runs/` directory if it doesn't exist). `<slug>` uses the same rule as the ADR step below: the first 5 significant words of the user's question, lowercase, kebab-case, no punctuation. `YYYY-MM-DD` is today's date.
+
+All content below is already in-context from prior steps — this step performs no new computation, only assembly:
+
+```
+## Question
+<verbatim user question>
+
+## Canonical Intent
+<text from Step 2>
+
+## Panel
+<active roster from Protocol · Roster, +Decomposer +Judge> — <note which model session ran the panel, e.g. "run on: <model name/id of this session>">
+
+## Votes
+<per-role, verbatim R1 vote lines including CONDITION tags and DISAGREEMENT blocks; if R2 ran, include R2 votes per role as well, verbatim>
+
+## External critic
+<status from Step 5 (external_status) + its verbatim output if it ran; "not_required" if it didn't>
+
+## Judge synthesis
+<the full Phase C output from Step 7, verbatim>
+
+---
+Generated by consensus-claude vX · LLM output is non-deterministic; this record documents this specific run.
+```
+
+Save the file path — it is printed as the final line of Step 8's output template (`Run record: ./consensus-runs/<file>.md`).
+
+### Step 10 — ADR file generation
 
 By default, no ADR is generated. Review artifacts live in PR comments / notes, not in `docs/decisions/`.
 

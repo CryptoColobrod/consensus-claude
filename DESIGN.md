@@ -25,7 +25,7 @@ A Claude Code skill: multi-perspective consensus via subagents with distinct rol
 2. Classification happens without asking the user for confirmation, with manual override available after it's shown.
 3. Panel size is adaptive (3–5 subagents) based on a complexity heuristic.
 4. Round structure is hybrid: parallel R1 → judge finds disputes → R2 covers only disputed theses.
-5. Anti-groupthink via Gemini — an optional fallback for three specific cases (see section 4).
+5. Anti-groupthink via a provider-agnostic external critic — an optional fallback for three specific cases, reached via a configured CLI or a manual paste-through handoff (see section 4).
 6. Relationship to `consensus-protocol` — a separate new skill; the old one stays.
 7. Debate mode is thesis-based (atomic theses T1..Tn with statuses AGREED/AGREED_WEAK/DISPUTED/NEEDS_CLARIFICATION), same as `consensus-protocol`.
 
@@ -47,8 +47,8 @@ R1 in parallel: N subagents independently assign a status to each thesis
    ↓
 [Judge subagent] Aggregates → agreement/dispute table
    ↓
-[Anti-groupthink check] Does the Gemini fallback trigger?
-   ├─ yes → Gemini runs an independent check → its DISPUTED theses feed into R2
+[Anti-groupthink check] Does the external critic fallback trigger?
+   ├─ yes → external critic (CLI or manual handoff) runs an independent check → its DISPUTED theses feed into R2
    └─ no → skip
    ↓
 R2 in parallel: disputed theses only, agents see each other's R1 positions
@@ -158,19 +158,24 @@ Pragmatist was given an **operational definition of over-engineering**: "an abst
 
 **Layer 4 — Devil's advocate section from the Judge.** The final report always includes a "What could go wrong" section — 1–2 strong arguments against the resulting consensus.
 
-**Layer 5 — Gemini fallback.** Triggers if **any one** of these holds:
+**Layer 5 — external critic fallback.** Triggers if **any one** of these holds:
 - All theses are AGREED **or** AGREED_WEAK after R1 (100% "weak or strong" agreement is a groupthink red flag, per Gemini review feedback).
 - Task type is `architecture` OR the task mentions security/PII.
-- Explicit `--with-gemini` flag.
+- Explicit `--with-external` flag.
 
-If Gemini fires and returns DISPUTED theses, those theses automatically enter R2 — even if the Opus agents were unanimous.
+If the critic fires and returns DISPUTED theses, those theses automatically enter R2 — even if the Opus agents were unanimous.
 
-**Implementation — via the Gemini CLI (not MCP).** The main Opus calls `timeout 30s gemini -p "<prompt>" 2>/dev/null` via the Bash tool (wrapper validated in PoC 0.3). Reasons:
+**Implementation — provider-agnostic, via a CLI-or-manual ladder (not MCP).** Originally built and PoC-validated (PoC 0.3) against the Gemini CLI specifically — `timeout 30s gemini -p "<prompt>" 2>/dev/null` via the Bash tool — for reasons that still hold as the default worked example:
 - **Cheaper** — OAuth via a Google AI subscription plan, not per-call API billing. Both resources (the Claude subscription and the Google AI subscription) run on a flat-rate model.
 - **Newer model** — `gemini-3.1-pro-preview` (the CLI default) vs. `gemini-2.5-pro` in the MCP path.
 - **Less overhead** — no auto-save to a reviews directory, which an internal fallback doesn't need.
 
-Prompt template for the CLI:
+The mechanism has since been generalized into a 3-step ladder so the fallback isn't hardwired to one provider:
+1. **Configured CLI (any provider).** The Protocol block's one configurable command line (default `gemini -p`) is invoked the same way as above — any CLI that accepts a prompt and prints text qualifies (`codex exec`, `ollama run <model>`, etc.), not only `gemini`.
+2. **Manual handoff.** If no command is configured, or the CLI exits non-zero — the orchestrator prints the critic prompt to the user with instructions to paste it into any other model (web chat included) and paste the reply back. This makes the tripwire dependency-free: no CLI install required at all.
+3. **Skip.** The user declines → `skipped (user_declined)`, run continues.
+
+Prompt template (shared by both the CLI path and the manual path):
 ```
 You are an external critic. For each thesis below, return ONE line in format:
 T<n>: <AGREED|AGREED_WEAK|DISPUTED|NEEDS_CLARIFICATION> [<comment if not AGREED>]
@@ -180,13 +185,13 @@ T1: ...
 T2: ...
 ```
 
-Response parsing is a regex over the statuses. **Inside `consensus-claude`, all Gemini calls go through the CLI only.** The MCP tools (`mcp__gemini-tools__*`) are not used by this skill.
+Response parsing is a regex over the statuses, applied identically to CLI stdout and to a pasted manual reply. **Inside `consensus-claude`, all external-critic calls go through the CLI-or-manual ladder only.** The MCP tools (`mcp__gemini-tools__*`) are not used by this skill.
 
 **Layer 6 — Trade-offs in the final output.** The Judge must explicitly spell out key trade-offs: "T2 — Architect chose extensibility, Pragmatist flagged a +2 week schedule risk. Architect's call was adopted, risk acknowledged." This prevents quietly burying the losing side of an argument.
 
 **Known limitations (stated explicitly):**
 - The `Agent` tool in Claude Code doesn't let you vary temperature per subagent → one classic anti-groupthink technique is unavailable.
-- Every agent is the same model → shared blind spots can't be fully ruled out. The Gemini fallback closes this gap partially, not completely.
+- Every agent is the same model → shared blind spots can't be fully ruled out. The external critic fallback closes this gap partially, not completely.
 
 ## 5. Stop conditions and stagnation
 
@@ -194,8 +199,8 @@ Priority, top to bottom:
 
 | Condition | Action |
 |---|---|
-| After R1: all AGREED/AGREED_WEAK + Gemini fallback didn't trigger OR Gemini also agrees | **Early finalize**, skip R2 |
-| After R1: all AGREED/AGREED_WEAK, but Gemini surfaced DISPUTED theses | R2 runs **only** on the theses Gemini disputed |
+| After R1: all AGREED/AGREED_WEAK + external critic fallback didn't trigger OR the critic also agrees | **Early finalize**, skip R2 |
+| After R1: all AGREED/AGREED_WEAK, but the external critic surfaced DISPUTED theses | R2 runs **only** on the theses the critic disputed |
 | After R1: some theses are DISPUTED/NEEDS_CLARIFICATION | R2 runs on those theses |
 | After R2: all AGREED/AGREED_WEAK | **Finalize.** AGREED_WEAK nuances → "Nuances to consider" |
 | After R2: some theses still DISPUTED | **Finalize with a flag.** "Unresolved" → its own section, arguments from both sides, escalate to the user |
@@ -210,7 +215,7 @@ Priority, top to bottom:
 
 - **The task doesn't decompose into atomic theses** (e.g., "what do you think of this code?") → fall back to *single-thesis* mode: the whole task becomes one thesis T1, the panel responds freely, and the Judge aggregates. Less valuable, but doesn't break.
 - **A subagent returns garbage or an invalid status** → the Judge marks that vote `invalid`; the thesis is scored on N-1 votes. If invalid votes exceed 50%, abort and notify the user.
-- **Gemini CLI is unavailable** (non-zero exit, expired OAuth token, binary not found, timeout) → skip the fallback, log `gemini_cli_unavailable`, proceed to R2 with Opus agents only. Report this to the user in the chat summary: `Gemini fallback: skipped (CLI unavailable)`. Special case: exit code **42** = empty/invalid input (a PoC finding) — detected separately as `gemini_invalid_input`.
+- **Configured CLI is unavailable** (non-zero exit, expired OAuth token, binary not found, timeout, or no command configured at all) → fall through to the manual paste-through handoff instead of failing outright (see DESIGN.md · Layer 5); only if the user also declines the manual handoff does the fallback report `skipped (user_declined)`. (Originally, in the Gemini-only PoC, exit code 42 was treated as a special "invalid input" case; the generalized ladder folds that into "any non-zero exit → offer the manual handoff," since the specific exit code is a Gemini CLI quirk, not a general CLI contract.)
 - **Cross-language quirk** (PoC 0.3): Russian input → Gemini returns English output with the correct T<n>: STATUS format. This is a feature for anti-groupthink purposes (a different language is a different angle), but if the final output needs comments in the user's language, the Judge must translate them during synthesis.
 
 ## 6. Output
@@ -221,13 +226,13 @@ Priority, top to bottom:
 🧠 consensus-claude
 Classified as: architecture · Complexity: 4/5 → Panel (5):
   Architect / Skeptic / Security / Pragmatist / Operations-SRE (+Judge)
-Gemini fallback: triggered (architecture+security)
+External critic: triggered (cli — architecture+security)
 
 Round 1/2:
   Agreed: T1, T3, T5
   Disputed: T2, T4
   AGREED_WEAK nuances: T1 (Skeptic), T3 (Pragmatist)
-  Gemini surfaced: T2 — DISPUTED (new argument)
+  External critic surfaced: T2 — DISPUTED (new argument)
 
 Round 2/2 (T2, T4 only):
   T2 → accepted with an amendment
@@ -268,7 +273,7 @@ source: consensus-claude
 classification: architecture
 complexity: 4
 panel: [Architect, Skeptic, Security, Pragmatist, Operations-SRE]
-gemini_invoked: true
+external_critic_invoked: true
 ---
 
 # Decision: <topic>
@@ -287,7 +292,7 @@ gemini_invoked: true
 
 ## Debate history
 - R1: agreed on T1/T3/T5, disputed T2/T4
-- Gemini fallback: added a DISPUTED flag on T2
+- External critic fallback: added a DISPUTED flag on T2
 - R2: T2 accepted with amendment, T4 stagnated
 
 ## Devil's advocate
@@ -308,7 +313,7 @@ For `code` / `spec` / `strategy` — chat summary only. Artifacts for these task
 
 ```
 /consensus-claude <question>
-/consensus-claude --with-gemini <question>
+/consensus-claude --with-external <question>
 /consensus-claude --domain-context "Kafka, Postgres 14" <question>
 /consensus-claude --preset code <question>
 ```
@@ -395,7 +400,7 @@ Deliberate-debt signal: most shelf roles being off by default is curation, not a
 
 ## Known limitations (stated explicitly)
 
-- **Single-model echo chamber.** Every Opus agent is the same model. The Gemini fallback layer closes this gap partially, not completely. This is a deliberate trade-off in exchange for cost and speed.
+- **Single-model echo chamber.** Every Opus agent is the same model. The external critic fallback layer closes this gap partially, not completely. This is a deliberate trade-off in exchange for cost and speed.
 - **Fragile classification.** The cascade heuristic can misfire. Manual override is mandatory. We're not attempting an ML classifier.
 - **Prompt quality = system quality.** 90% of success comes down to the wording of each role's mandate. Requires iterative tuning.
 - **No temperature variation.** A technical limitation of the Claude Code Agent tool.

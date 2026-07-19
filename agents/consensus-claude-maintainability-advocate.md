@@ -1,7 +1,6 @@
 ---
 name: consensus-claude-maintainability-advocate
 description: Use ONLY by consensus-claude skill orchestrator. Evaluates theses through "will I be able to change this in 6 months without pain" lens.
-model: opus
 competencies: [future-change-cost, decomposition, naming, hidden-coupling]
 ---
 
