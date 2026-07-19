@@ -178,7 +178,7 @@ Full role metadata (`when_to_enable` / `conflicts_with`) is in [DESIGN.md · Rol
 **Requirements:** Claude Code (the skill orchestrates panel roles via its subagent tool).
 
 ```bash
-git clone <repo> && cd consensus-claude
+git clone https://github.com/CryptoColobrod/consensus-claude.git && cd consensus-claude
 mkdir -p ~/.claude/skills/consensus-claude
 cp SKILL.md DESIGN.md ~/.claude/skills/consensus-claude/
 cp agents/*.md ~/.claude/agents/
