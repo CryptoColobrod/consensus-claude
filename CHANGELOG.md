@@ -4,6 +4,41 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.3.0] - 2026-07-19
+
+### Added
+
+**Duel mode**
+- `--mode` flag routes between `panel` (evaluate a formed decision) and `duels` (explore an
+  open problem); triage asks the routing question up front when `--mode` isn't set.
+- Tailored critics — each of the 3-5 strongest perspectives the Decomposer generates gets a
+  Champion and an antagonist purpose-built for that specific idea, not a generic skeptic;
+  critics stay FLIP-disciplined against strawmen. Each pair gets one isolated exchange.
+- SURVIVAL grading — the Judge grades each duel on four levels (`clean` / `scarred` / `gutted`
+  / `unproven`), feeding into the same `CONSENSUS_STRENGTH` line the panel uses.
+- Champion's footnote — the Judge states in one sentence how the Champion would have answered
+  its fatal flaw, fixing last-word bias at zero extra cost.
+- Un-championed direction check — the Judge names the option nobody was minted to defend.
+- FLIP-to-tripwire dividend — rejected perspectives' `FLIP:` tags invert into `Revisit if...`
+  tripwires, same mechanism the panel already uses for disputed theses.
+
+**Dialectic decomposition**
+- Lumper/Splitter negotiation — decomposition now runs an internal negotiation over thesis
+  grain (how finely to split the question), with structural separation between the two roles
+  and a settlement that follows the stronger argument on a per-seam basis. Applies to both
+  panel and duel mode.
+- `GRAIN` trace line — an always-visible output line showing the negotiated framing, e.g.
+  `GRAIN: 6 theses (Splitter proposed 7, Lumper proposed 6) — ...`; the full negotiation detail
+  goes into the run record, not the trace line.
+- `--grain fine|coarse` flag biases the negotiation toward more or fewer theses.
+- Gate-tested on 4 diverse question types: grain tracked with question type (6/5/4/4 theses
+  across the four types), settlements followed per-seam arguments rather than a fixed rule, and
+  all four test runs spontaneously promoted a hidden premise to T0.
+
+### Deprecated
+
+- `--emergent` — now a deprecated alias for `--mode duels`.
+
 ## [1.2.0] - 2026-07-19
 
 ### Added

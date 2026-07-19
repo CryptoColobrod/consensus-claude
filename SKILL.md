@@ -28,14 +28,17 @@ machine-parseable decision trail, and protection against a "lowest common denomi
 
 ### Phases
 
-`Triage → Decompose → Vote (R1) → Judge(aggregate) → Vote (R2, disputed only) → Judge(synthesize)`
+Two modes share Triage and Decompose: `panel` (evaluate a formed decision — per-thesis votes, the
+backbone) and `duels` (explore an open problem — per-perspective duels).
 
-- **Triage** — is the question within the skill's scope? (see Scope below) If not — decline, panel does not run.
-- **Decompose** — the Decomposer produces `Canonical Intent` (the gist of the task in 1–2 sentences) + `T0` (Premise Distillation — the question's foundational unstated premise, voted like any thesis) + atomic theses T1..Tn.
-- **Vote R1** — panel roles vote on each thesis in parallel and independently (context isolation).
-- **Judge aggregate** — tally the votes, find disputed theses, detect groupthink.
-- **Vote R2** — disputed theses only; roles see each other's R1 positions, must contribute new substance.
-- **Judge synthesize** — holism check, separating tension from error, final synthesis with disagreement preserved.
+`Triage → Decompose → [fork on mode] → panel: Vote (R1) → Judge(aggregate) → Vote (R2, disputed only) → Judge(synthesize) | duels: Perspectives → Duels → Judge(synthesize)`
+
+- **Triage** — is the question within the skill's scope? (see Scope below) If not — decline, panel does not run. Also classifies (or asks) which mode applies (see Duels below).
+- **Decompose** — the Decomposer produces `Canonical Intent` (the gist of the task in 1–2 sentences) + `T0` (Premise Distillation — the question's foundational unstated premise, voted like any thesis) + atomic theses T1..Tn, settled via an internal Lumper⚔Splitter dialectic with an always-visible `GRAIN` trace line.
+- **Vote R1** *(panel mode)* — panel roles vote on each thesis in parallel and independently (context isolation).
+- **Judge aggregate** *(panel mode)* — tally the votes, find disputed theses, detect groupthink.
+- **Vote R2** *(panel mode)* — disputed theses only; roles see each other's R1 positions, must contribute new substance.
+- **Judge synthesize** — holism check, separating tension from error, final synthesis with disagreement preserved (panel mode); or per-duel SURVIVAL + cross-perspective synthesis (duels mode, see Duels below).
 
 ### Roster (declared HERE once; steps dispatch "the roster defined in Protocol")
 
@@ -99,6 +102,18 @@ vocabulary.
 - Stagnation (R2 arguments are a semantic rehash of R1) → the thesis is marked `STAGNATED`, R3 is not invoked.
 - The final synthesis opens with `CONSENSUS_STRENGTH` (`Strong` / `Working` / `Narrowly carried` / `Contested`) — the Judge's own one-word read on how solid the verdict is, emitted before the rest of Phase C.
 
+### Duels (exploration mode)
+
+`duels` mode explores an open problem instead of evaluating a formed decision. The Decomposer's
+grain-settled perspectives are minted into pairs: each perspective gets a **Champion** (its
+strongest advocate) and a **Tailored Critic** — an antagonist purpose-built for that idea, not a
+generic skeptic, disciplined against strawmen by a mandatory `FLIP:` + `ANCHOR:` in its output. Each
+pair runs one isolated exchange (Champion's case, then the Critic's fatal-flaw answer) — no
+multi-round chat, same hard-cap philosophy as panel mode. The Judge grades each duel's `SURVIVAL`
+(`clean` / `scarred` / `gutted` / `unproven`), feeding the same `CONSENSUS_STRENGTH` vocabulary used
+by panel mode. Because the Critic strikes last, the Judge appends a one-sentence Champion's footnote
+per duel to restore last-word balance.
+
 ### Anti-groupthink
 
 - The Adversarial Presence invariant (see above) — a structural safeguard.
@@ -152,7 +167,7 @@ The skill activates on any of:
 
 **Deliberateness gate.** The two trigger paths carry different intent signal:
 - **Slash command** (`/consensus-claude <question>`) is always a deliberate, explicit invocation → proceed directly to Triage. The Step 1 estimate line is sufficient; no confirmation is needed.
-- **Trigger phrase in conversation** ("claude consensus" etc.) may be a casual aside, not a deliberate request for a full panel run → before dispatching any subagent, the orchestrator must print ONE confirm line: `A full panel run costs ~6-11 model calls and takes several minutes. Proceed?` and wait for the user's confirmation before continuing to Triage.
+- **Trigger phrase in conversation** ("claude consensus" etc.) may be a casual aside, not a deliberate request for a full panel run → before dispatching any subagent, the orchestrator must print ONE confirm line: `A full run costs ~6-13 model calls (~6-11 panel mode, ~9-13 duels mode) and takes several minutes. Proceed?` and wait for the user's confirmation before continuing to Triage. (The precise mode and its exact estimate are confirmed again in Step 1, once Triage has classified.)
 
 **First action** (mandatory, before any subagent calls): print to the user:
 
@@ -171,7 +186,9 @@ Immediately after — for the trigger-phrase path, the deliberateness gate above
 | `--no-record` | Skip writing the run record file |
 | `--plan` | Stop after Triage+Decompose: show Canonical Intent + theses for user approval/editing before any panel votes are spent |
 | `--roles "<spec>"` | One-run roster override: `+Shelf-role` enables a shelf role, `-Role` disables an active one, `+name(focus:'...')` mints an ephemeral persona for this run only |
-| `--emergent` | Experimental Schrödinger mode: the problem defines its own panel (see Emergent panel mode) |
+| `--mode panel\|duels` | Forces the ceremony instead of letting Triage classify (see Step 0) |
+| `--grain fine\|coarse` | Biases the Lumper⚔Splitter settlement toward more/fewer theses or perspectives; never silences either voice (see Protocol · Decompose) |
+| `--emergent` | Alias for `--mode duels` (deprecated name) |
 
 Unknown flags: print a warning `⚠️ Unknown flag: <name>, continuing.` and don't stop.
 
@@ -193,18 +210,36 @@ The main model follows the steps strictly in order. Each step is an atomic actio
 
 Check against Scope (see Protocol · Scope). This is an instruction to the orchestrator — not a code call.
 
-- Question is in scope → continue to Step 1.
+- Question is in scope → continue to mode routing below.
 - Question is out of scope → polite decline, panel does NOT run. Template: `This is outside consensus-claude's scope (see Scope) — you need <a lawyer/other specialist>, not a decision-review panel.`
+
+**Mode routing.** Once in scope, classify the question into one of the two ceremonies (see Protocol · Phases and Protocol · Duels):
+
+- **"Evaluate a formed decision?"** — a decision, plan, or piece of work already exists and the question is whether it holds up → `panel` mode.
+- **"Explore an open problem / choose between directions?"** — no single decision is on the table yet, the question is which direction to take → `duels` mode.
+
+Routing precedence:
+1. `--mode panel` or `--mode duels` was passed → that mode, no classification needed.
+2. `--emergent` was passed → `duels` mode (deprecated alias, see Flags).
+3. Otherwise classify from the question text. If genuinely ambiguous, ask the user ONE question: `Is this evaluating a decision already made, or exploring open directions?` and wait for the reply before continuing.
+
+Save the resolved mode — it drives every step from here on (Step 4 onward forks on it).
 
 ### Step 1 — Print classification line
 
 Immediately after the greeting and successful Triage, print the classification line, extended with an upfront cost estimate so the user sees the cost before any subagent is dispatched:
 
 ```
-🧠 consensus-claude · Panel: <active roster> (+Decomposer +Judge) · ~6-11 model calls · several minutes
+🧠 consensus-claude · Mode: panel · Panel: <active roster> (+Decomposer +Judge) · ~6-11 model calls · several minutes
 ```
 
-Where `<active roster>` is the list of roles from Protocol · Roster (dynamic, not a literal in this file). The `~6-11 model calls` figure is fixed: 6 = R1 minimum (1 Decomposer + 4 votes + 1 Judge pass); 11 = with a full targeted R2 (+4 re-votes +1 additional Judge pass).
+or, in `duels` mode:
+
+```
+🧠 consensus-claude · Mode: duels · 3-5 perspectives, each a Champion+Tailored Critic duel (+Decomposer +Judge) · ~9-13 model calls · several minutes
+```
+
+Where `<active roster>` is the list of roles from Protocol · Roster (dynamic, not a literal in this file). The `~6-11 model calls` figure is fixed: 6 = R1 minimum (1 Decomposer + 4 votes + 1 Judge pass); 11 = with a full targeted R2 (+4 re-votes +1 additional Judge pass). The `~9-13 model calls` figure for duels mode: 1 Decomposer (dialectic decompose) + 1 perspective generation + 2N duel calls for N=3–5 perspectives + 1 Judge pass.
 
 (For the trigger-phrase path, this line is printed only after the user has already confirmed via the Trigger section's deliberateness gate — it is not itself the confirmation.)
 
@@ -212,19 +247,26 @@ Save the user's parsed flags (`--with-external`, `--save-adr`, `--no-record`) fo
 
 ### Step 2 — Decomposer dispatch
 
+Runs identically in both modes — the dialectic decomposition (Protocol · Decompose) is
+mode-independent; only what happens with its output forks later (Step 4).
+
 Call ONE subagent:
 
 ```
 Agent(
   subagent_type="consensus-claude-decomposer",
-  description="Decompose into theses",  prompt="Decompose: <verbatim user question>"
+  description="Decompose into theses",  prompt="Decompose: <verbatim user question>[. Grain preference: fine|coarse]"
 )
 ```
+
+Append `Grain preference: fine|coarse` to the prompt only if the user passed `--grain`; omit it
+otherwise and let the Lumper⚔Splitter dialectic settle the grain unbiased.
 
 Parse the response. Expected format:
 
 ```
 CANONICAL_INTENT: <gist of the task in 1–2 sentences>
+GRAIN: <n> theses (Splitter proposed <k>, Lumper proposed <m>) — <rationale>
 T0: <Premise Distillation — the question's foundational unstated premise>
 T1: ...
 T2: ...
@@ -232,15 +274,20 @@ T2: ...
 Tn: ...
 ```
 
+The `GRAIN` line is a feature, not debug info — it is the negotiated-framing trace and MUST be shown
+to the user verbatim, both at the `--plan` checkpoint (Step 3) and in the pre-vote/pre-duel output.
+The full Splitter/Lumper dialectic transcript (the tagged splitter-proposal / lumper-critique /
+settlement blocks) is NOT shown in chat — it goes into the VDR only (Step 10).
+
 **Single-thesis fallback:** if the response contains fewer than 2 valid theses (e.g. the Decomposer produced only T1, or nothing parseable at all) — enter single-thesis mode: treat the user's entire original question as one thesis T1 verbatim, and the Canonical Intent as the question itself. This is a lower-value mode, but the skill doesn't fail outright. Print to the user: `ℹ️ Single-thesis fallback: the task didn't decompose, evaluating as a single thesis T1.` (T0 is still produced and voted normally in this fallback — only T1..Tn collapses to one item.)
 
-Record the Canonical Intent and the final list of theses (T0..Tn) in variables — they're needed in every following step.
+Record the Canonical Intent, the GRAIN line, and the final list of theses (T0..Tn) in variables — they're needed in every following step.
 
 ### Step 3 — `--plan` checkpoint (only if the flag was passed)
 
 If the `--plan` flag was NOT passed → skip this step entirely, continue straight to Step 4.
 
-If `--plan` WAS passed → print the Canonical Intent and the full thesis list (T0..Tn) from Step 2, then stop and print:
+If `--plan` WAS passed → print the Canonical Intent, the `GRAIN` line, and the full thesis list (T0..Tn) from Step 2, then stop and print:
 
 > Reply "approve" to dispatch the panel, or reply with edited theses (same T\<n\> format) to use your version.
 
@@ -248,9 +295,16 @@ Wait for the user's next message:
 - **"approve"** (or equivalent) → continue to Step 4 using the theses exactly as produced in Step 2.
 - **Edited theses** (a reply in the same `T<n>: <text>` format) → replace the in-memory Canonical Intent/theses with the user's version, then continue to Step 4 using the edited set. No re-dispatch of the Decomposer — the user's reply IS the new thesis list.
 
+In `duels` mode, this same checkpoint mechanic applies a second time after perspective generation
+(Step 4a) — see that step. The `--plan` behavior above is unchanged in panel mode.
+
 No subagent calls happen in this step — it's a pure orchestrator print-and-wait, spending zero of the panel's model calls, which is the point of the flag (approve/edit before any panel votes are spent).
 
 ### Step 4 — R1 panel: dispatch panel subagents IN PARALLEL (single message)
+
+**Mode fork.** This step (and Steps 5–9) is the `panel`-mode flow. If the resolved mode (Step 0) is
+`duels` → skip this entire step and Steps 5–9, go straight to **Step 4a** below; Steps 10–11 (VDR,
+ADR) resume afterward and apply to both modes.
 
 **Critical:** all roster calls go in ONE message from the main model, as parallel tool-use (parallel function calls). This is required for R1 isolation (each agent in a clean context, none sees another's answers).
 
@@ -273,10 +327,6 @@ the orchestrator says so to the user and keeps `Skeptic` in the roster regardles
 (the guard wins over the user's `-Skeptic` in that one case — invariants are non-negotiable).
 
 If `--roles` was NOT passed → the active roster is exactly Protocol · Roster, unchanged.
-
-**Emergent panel mode (`--emergent`) replaces this entire step** with a different dispatch flow —
-see the dedicated subsection below. Skip straight there if `--emergent` was passed; the rest of
-this step (and the fixed-roster prompt below) does not apply.
 
 Dispatch the entire active roster (post-override, see above) in a single message.
 
@@ -305,43 +355,138 @@ Wait for all roster subagents to return. Each returns:
 
 If any agent returned unparseable output → mark its votes as `invalid` (see the Edge cases section above).
 
-#### Emergent panel mode (`--emergent`) — experimental, replaces the fixed-roster dispatch above
+### Step 4a — Duel mode: perspective generation (1 call)
 
-**Experimental.** Only runs if the `--emergent` flag was passed; it replaces this entire step's
-fixed-roster dispatch with a different flow. Cost note: up to ~9-13 model calls (higher than the
-default ~6-11, see Step 1). Honest labeling: the panel composition itself becomes non-deterministic
-under this mode — the trade is novelty of perspectives vs. reproducibility of the panel. Print this
-trade-off to the user before dispatching (one line) so it isn't a silent cost/determinism change.
-
-Flow:
-(a) One extra subagent call, made right after Step 2's Decomposer output (before any voting):
+**Duels-mode only** (see the mode fork at the top of Step 4). Runs right after Step 2/3, as an
+ADDITIONAL call on top of Step 2 (Step 2 still runs in duels mode — its Canonical Intent, T0, and
+GRAIN trace are the foundational frame this call builds on; only T1..Tn are unused, since there is
+no per-thesis voting in duels mode). This call replaces the roster dispatch of Step 4.
 
 ```
 Agent(
   subagent_type="consensus-claude-decomposer",
-  description="Generate emergent perspectives",  prompt="Generate the 5-7 strongest genuinely distinct perspectives/core arguments on this question — one line each, no personas yet. Question: <verbatim user question>. Canonical Intent: <text from Step 2>."
+  description="Generate perspectives",  prompt="Generate the 3-5 strongest genuinely distinct perspectives/directions on this question — one line each, no personas yet. Settle the count/grain yourself via the same Lumper⚔Splitter dialectic used for thesis decomposition (Protocol · Decompose), and report a GRAIN trace line for the perspective set. Question: <verbatim user question>. Canonical Intent: <text from Step 2>.[ Grain preference: fine|coarse]"
 )
 ```
 
-(b) The orchestrator retroactively mints an ephemeral persona to champion each returned perspective
-— same mechanics as a `--roles +name(focus:'...')` persona (Step 4, `--roles` override, above): a
-name, a one-line mandate derived from the perspective, and the full vote-format contract (statuses +
-CONDITION/FLIP/ANCHOR/[impact] tags) injected into its prompt. Cap at max 7 personas, min 3 — if
-fewer than 3 distinct perspectives came back, pad with golden-roster roles (Skeptic first) to reach
-the minimum.
+Append `Grain preference: fine|coarse` only if the user passed `--grain` (same rule as Step 2).
 
-(c) Adversarial Presence check: if none of the generated personas is adversarial by construction,
-add `Skeptic` from the golden roster (Protocol · Roster) to the emergent panel — same invariant as
-the `--roles` guard, applied here because the roster isn't fixed in advance under this mode.
+Expected output: a `GRAIN` trace line (`GRAIN: <n> perspectives (Splitter proposed <k>, Lumper
+proposed <m>) — <rationale>`) followed by 3-5 perspective lines. Print the GRAIN line to the user
+verbatim (Protocol · Decompose — always user-visible).
 
-(d) Proceed with the normal per-thesis R1/R2/Judge flow (Steps 4 onward, i.e. this step's dispatch
-mechanics and Steps 5–9) using these emergent personas in place of the golden roster everywhere
-"active roster" is referenced.
+**`--plan` checkpoint (duels mode, second checkpoint).** If `--plan` was passed, stop here and print
+the GRAIN line + the perspective list, then:
 
-(e) The run record (Step 10) lists the emergent roster (names + one-line mandates) and marks the
-run `mode: emergent` in its `AUDIT_BLOCK`.
+> Reply "approve" to mint Champion/Critic pairs and run the duels, or reply with an edited perspective list to use your version.
+
+Wait for the user's reply — "approve" continues to Step 4b unchanged; an edited list replaces the
+in-memory perspectives (no re-dispatch). If `--plan` was NOT passed, continue straight to Step 4b.
+
+**Fallback:** if fewer than 3 distinct perspectives come back, pad with a boring-default perspective
+("do nothing / keep the status quo") until 3 are reached — do not silently proceed with 1-2.
+
+### Step 4b — Duel mode: pair minting (orchestrator, no calls)
+
+For EACH perspective from Step 4a, mint two ephemeral personas — same mechanics as a `--roles
++name(focus:'...')` persona (Step 4, `--roles` override, above): a name, a one-line mandate, and the
+full vote-format contract (CONDITION/FLIP/ANCHOR/[impact] tags) injected into its prompt.
+
+- **Champion** — mandate built directly from the perspective: its strongest possible advocate,
+  instructed to make the strongest case (ANCHOR quotes, CONDITION where honest).
+- **Tailored Critic** — the antagonist purpose-built for THIS idea. Its mandate is written as a
+  biography of contact with this idea-class's failures (e.g. "you have watched three rewrites die
+  this way"), NOT generic skepticism copied across perspectives. It is instructed that its output
+  MUST contain a `FLIP:` (what evidence would vindicate the idea, i.e. prove the Critic wrong) and
+  an `ANCHOR:` quote — a Critic response missing `FLIP:` is invalid.
+
+**Anti-strawman guard.** If a Critic's duel output (Step 4c) comes back without a `FLIP:` line,
+re-mint that Critic once with an explicit reminder of the requirement and re-run its duel call. If
+the retry still lacks `FLIP:`, stop retrying and mark that duel `unproven` (see the Judge's SURVIVAL
+grades) rather than looping further.
+
+### Step 4c — Duel mode: duels (2 isolated calls per perspective)
+
+For each perspective's pair, two calls (Champion then Critic — sequential per pair since the Critic
+answers the Champion's case; different perspectives' pairs are independent of each other and MAY be
+parallelized across perspectives, but each pair internally is Champion-then-Critic, one exchange,
+no chat back and forth):
+
+```
+Agent(
+  subagent_type="claude",
+  description="Champion case: <perspective>",  prompt="<Champion mandate from Step 4b>\n\nOriginal question: <verbatim user question>\n\nCanonical Intent: <text from Step 2>\n\nState your strongest case for this perspective. Use ANCHOR: quotes from the question/spec where you ground a claim, and CONDITION: for anything contingent on an external dependency."
+)
+```
+
+```
+Agent(
+  subagent_type="claude",
+  description="Critic fatal-flaw case: <perspective>",  prompt="<Tailored Critic mandate from Step 4b>\n\nOriginal question: <verbatim user question>\n\nCanonical Intent: <text from Step 2>\n\nChampion's case:\n<verbatim Champion output>\n\nState the fatal-flaw case against this perspective. FLIP: (what evidence would vindicate the idea) is MANDATORY. Tag [impact: critical|moderate|minor] on every strike. ANCHOR: quotes required where you ground a claim."
+)
+```
+
+One exchange each — Champion states its case once, Critic answers once. No multi-round chat (Protocol
+· Rounds & stop conditions — the same hard-cap philosophy applies to duels).
+
+If a Critic response lacks `FLIP:` → apply the anti-strawman guard from Step 4b (re-mint once, then
+mark `unproven`).
+
+### Step 4d — Duel mode: Judge synthesis (1 call)
+
+Call ONE subagent, dispatched with the duel-mode inputs per the judge mandate's Duel mode section
+(`agents/consensus-claude-judge.md`):
+
+```
+Agent(
+  subagent_type="consensus-claude-judge",
+  description="Duel synthesis",  prompt="Duel mode. Original question: <q>. Canonical Intent: <intent>. GRAIN: <perspective GRAIN trace from Step 4a>. Perspectives: <list from Step 4a>.\n\nDuel transcripts:\n\n<perspective 1>:\nChampion:\n<full Champion output>\nCritic:\n<full Critic output>\n\n<perspective 2>:\n...\n(repeat for every perspective)"
+)
+```
+
+The Judge (per its Duel mode mandate) works through, in order: per-duel `SURVIVAL` grade
+(`clean`/`scarred`/`gutted`/`unproven`) + Champion's footnote; the un-championed-direction check;
+cross-duel trade-offs/untested hybrids/unanswered points; a unified `CONSENSUS_STRENGTH` line (same
+vocabulary as panel mode, fed by SURVIVAL); verdict + prerequisites + tripwires (every rejected
+perspective's Critic-FLIP inverts into a revisit trigger, 1-3 tripwires) + Devil's advocate.
+
+Save the Judge's output — it goes into Step 4e verbatim.
+
+### Step 4e — Duel mode: render output to user
+
+Print to the user as a single block (user's language, per Protocol · Output language; statuses/grades
+stay English), using the Judge's duel-mode output schema (`agents/consensus-claude-judge.md` · Duel
+mode · Output schema):
+
+```
+🧠 consensus-claude · Mode: duels
+CONSENSUS_STRENGTH: <Strong|Working|Narrowly carried|Contested> — <clause>
+GRAIN: <perspective GRAIN trace from Step 4a>
+
+🗺 Field map:
+  <perspective> — SURVIVAL: <clean|scarred|gutted|unproven> · <one-line why> · Footnote: <champion's answer>
+  ...
+
+🔍 Un-championed direction: <paragraph or defended "field covers the intent">
+
+🔀 Trade-offs (between survivors): <...>
+🧪 Untested hybrids: <labeled observations or "none">
+📎 Prerequisites: <conditions checklist>  ·  Tripwires: <revisit-if list>
+❓ Unanswered points: <named blocks or "none">
+😈 Devil's advocate: <two strikes, ≥1 independent>
+
+Verdict: <direction / measure-first / reframe-first + rationale>
+
+Run record: <./consensus-runs/<file>.md | skipped (--no-record)>
+```
+
+Then continue to Step 10 (VDR) — duels mode writes the same record structure (AUDIT_BLOCK `mode:
+duels`, duel transcripts in place of per-role votes, see Step 10 for the duel-mode field mapping) —
+and Step 11 (ADR) exactly as panel mode does; Steps 5–9 do not run in duels mode.
 
 ### Step 5 — Judge dispatch (Phase A — aggregation)
+
+**Panel-mode only** (see the mode fork at the top of Step 4). Duels mode uses Step 4d instead.
 
 Call ONE subagent:
 
@@ -363,6 +508,9 @@ Parse the Judge's output as a `ROUND_SUMMARY`:
 Save this data — needed in Steps 6–9.
 
 ### Step 6 — External critic decision
+
+**Panel-mode only.** Duels mode has no external-critic step — the Tailored Critic already supplies
+the adversarial voice per perspective.
 
 Trigger condition (fires if AT LEAST ONE is met):
 
@@ -418,6 +566,8 @@ Wait for the user's next message.
 
 ### Step 7 — R2 dispatch (only DISPUTED theses)
 
+**Panel-mode only.** Duels mode has no R2 — each duel is a single isolated exchange (Step 4c).
+
 If `DISPUTED_THESES` is empty after Step 5 + Step 6 → **early finalize**, go straight to Step 8 without R2.
 
 Otherwise — dispatch the same roster IN PARALLEL (single message, as in Step 4) with the R2 prompt:
@@ -453,6 +603,8 @@ Wait for the entire roster. If a role continues to emit a DISAGREEMENT block (Op
 
 ### Step 8 — Judge dispatch (Phase B + C — stagnation check + final synthesis)
 
+**Panel-mode only.** Duels mode's single Judge synthesis call is Step 4d.
+
 Call the Judge a second time:
 
 ```
@@ -469,6 +621,8 @@ The Judge does:
 Save the Judge's output — it goes into Step 9 verbatim.
 
 ### Step 9 — Render output to user
+
+**Panel-mode only.** Duels mode's render step is Step 4e.
 
 Print to the user as a single block (all in the user's language, per Protocol · Output language, except the internal statuses AGREED/DISPUTED/AGREED_WEAK/NEEDS_CLARIFICATION — these stay as technical markers, see Protocol · Status vocabulary, + the CONDITION tag).
 
@@ -508,20 +662,20 @@ If `Round 2/2` didn't run (early finalize) — omit the section entirely, print 
 
 ### Step 10 — Verifiable Decision Record
 
-ON by default; opt out with `--no-record` (see Flags). Rationale: this record is the product's auditability story — the artifact to attach when reporting a weak or disputed verdict, since it lets anyone re-derive the synthesis from the raw votes without re-running the panel.
+Runs for both modes. ON by default; opt out with `--no-record` (see Flags). Rationale: this record is the product's auditability story — the artifact to attach when reporting a weak or disputed verdict, since it lets anyone re-derive the synthesis from the raw votes without re-running the panel.
 
-If `--no-record` was passed → skip this step silently, and print `Run record: skipped (--no-record)` in Step 9's output (already covered by the template above).
+If `--no-record` was passed → skip this step silently, and print `Run record: skipped (--no-record)` in Step 9's (or Step 4e's, in duels mode) output (already covered by the template above).
 
 Otherwise, write a structured markdown transcript to `./consensus-runs/YYYY-MM-DD-<slug>.md` relative to cwd (create the `consensus-runs/` directory if it doesn't exist). `<slug>` uses the same rule as the ADR step below: the first 5 significant words of the user's question, lowercase, kebab-case, no punctuation. `YYYY-MM-DD` is today's date.
 
-All content below is already in-context from prior steps — this step performs no new computation, only assembly. The record now OPENS with a machine-readable `AUDIT_BLOCK` — a fenced block of `key: value` lines at the very top of the same file, purpose-built so that this block (or the whole record) can be handed to ANY external model for a post-hoc audit, provider-agnostic:
+All content below is already in-context from prior steps — this step performs no new computation, only assembly. The record now OPENS with a machine-readable `AUDIT_BLOCK` — a fenced block of `key: value` lines at the very top of the same file, purpose-built so that this block (or the whole record) can be handed to ANY external model for a post-hoc audit, provider-agnostic. **Panel-mode template** (used when the resolved mode is `panel`):
 
 ```
 AUDIT_BLOCK
 date: YYYY-MM-DD
 question: <one-line, truncated if needed>
-mode: <standard|emergent>
-panel: <active roster from Protocol · Roster (or the emergent roster, see Step 4 · Emergent panel mode), +Decomposer +Judge>
+mode: panel
+panel: <active roster from Protocol · Roster, +Decomposer +Judge>
 consensus_strength: <Strong|Working|Narrowly carried|Contested>
 verdict: <one-line summary of the Judge's Phase C consensus>
 key_assumptions:
@@ -551,7 +705,48 @@ record_file: ./consensus-runs/YYYY-MM-DD-<slug>.md
 Generated by consensus-claude vX · LLM output is non-deterministic; this record documents this specific run.
 ```
 
-Save the file path — it is printed as the final line of Step 9's output template (`Run record: ./consensus-runs/<file>.md`).
+**Duels-mode template** (used when the resolved mode is `duels` — same file location, same
+`AUDIT_BLOCK` opening discipline, different field mapping since there are no per-role votes, only
+per-perspective duel transcripts):
+
+```
+AUDIT_BLOCK
+date: YYYY-MM-DD
+question: <one-line, truncated if needed>
+mode: duels
+panel: <perspectives from Step 4a as Champion/Critic pairs, +Decomposer +Judge>
+consensus_strength: <Strong|Working|Narrowly carried|Contested>
+verdict: <one-line summary of the Judge's verdict>
+key_assumptions:
+  - <bulleted, drawn from T0/Canonical Intent + any accepted CONDITION premises from surviving perspectives>
+  - ...
+record_file: ./consensus-runs/YYYY-MM-DD-<slug>.md
+
+## Question
+<verbatim user question>
+
+## Canonical Intent
+<text from Step 2>
+
+## Grain
+<the perspective GRAIN trace line from Step 4a, plus the full Splitter/Lumper dialectic transcript
+(tagged splitter-proposal / lumper-critique / settlement blocks) from Step 2's Decomposer call and,
+if it ran separately, Step 4a's — this is the one place the full dialectic is shown, not the chat output>
+
+## Perspectives
+<perspective list from Step 4a>
+
+## Duels
+<per-perspective, verbatim Champion output + verbatim Critic output, from Step 4c>
+
+## Judge synthesis
+<the full duel-mode output from Step 4d, verbatim, including per-duel SURVIVAL + footnotes>
+
+---
+Generated by consensus-claude vX · LLM output is non-deterministic; this record documents this specific run.
+```
+
+Save the file path — it is printed as the final line of Step 9's (or Step 4e's) output template (`Run record: ./consensus-runs/<file>.md`).
 
 **Decision journal append.** After writing the record file, append ONE line to `./consensus-runs/INDEX.md` (create it with a header row if it doesn't exist yet):
 

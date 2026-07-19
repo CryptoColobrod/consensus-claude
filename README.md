@@ -10,6 +10,7 @@ Most review tools score a decision holistically: one pass, one verdict. `consens
 - **4-status voting per thesis** — `AGREED` / `AGREED_WEAK` / `DISPUTED` / `NEEDS_CLARIFICATION` — plus a `CONDITION:` tag for conditional agreement ("yes, if this external dependency holds"), instead of bloating the status vocabulary with a 5th state.
 - **Hard-capped rounds.** R1 (parallel, isolated) + a targeted R2 on disputed theses only. Never R3 — two rounds without convergence is a signal to escalate to external review, not to spin the same panel again.
 - **Single-model by design.** The panel's independent perspectives come from role isolation within one apex model — distinct mandates, clean contexts, no cross-talk in R1 — not from paying for three API keys across three providers. An external critic enters only as an anti-groupthink tripwire when the panel goes suspiciously unanimous, and it's provider-agnostic: configure any CLI in one line, or fall back to a copy-paste prompt handoff to whatever model you already have — never the default mode.
+- **Critics with biographies, not a generic skeptic.** Criticism quality scales with critic specificity — in duel mode, each explored direction gets a critic with a biography: an antagonist shaped by the failures of exactly that idea's class, not a fixed adversarial role stretched to fit every idea.
 
 **vs. alternatives:** tools like [agent-review-panel](https://github.com/wan-huiyan/agent-review-panel) review a document holistically, as one blob. Multi-model council tools require multiple model providers by default. `consensus-claude`'s unit of judgment is the individual claim, and it needs exactly one model to do it.
 
@@ -24,7 +25,7 @@ Reach for the panel when:
 - You're de-risking a choice that's critical or hard to reverse
 - You want to surface unknown unknowns in a plan before committing to it
 
-For quick questions, just ask directly — the panel is deliberately heavyweight. On an expensive or ambiguous question, run with `--plan` first to steer the frame before you pay for a full panel.
+For quick questions, just ask directly — the panel is deliberately heavyweight. On an expensive or ambiguous question, run with `--plan` first to steer the frame before you pay for a full panel — this matters most in duel mode, where `--plan` lets you steer which perspectives get minted before paying for duels.
 
 ---
 
@@ -148,6 +149,16 @@ Triage → Decompose → Vote R1 (parallel, isolated) → Judge aggregate
         → Vote R2 (disputed theses only) → Judge synthesize
 ```
 
+After decomposition, one triage question forks the flow into two ceremonies: **panel** (vote on a formed decision, the flow above) or **duels** (explore an open problem — see [Duel mode](#duel-mode-explore-dont-just-evaluate) below). `--mode` forces the choice instead of relying on triage.
+
+Decomposition itself is no longer a single pass — an internal Lumper-vs-Splitter negotiation over thesis grain settles per seam, on whichever argument is stronger, and the result surfaces as an always-visible trace line:
+
+```
+GRAIN: 6 theses (Splitter proposed 7, Lumper proposed 6) — ...
+```
+
+The full negotiation goes into the run record, not the trace line. `--grain fine|coarse` biases the negotiation toward more or fewer theses.
+
 **Golden-standard roster** (4 roles, active by default):
 
 | Role | Lens |
@@ -194,11 +205,17 @@ Full role metadata (`when_to_enable` / `conflicts_with`) is in [DESIGN.md · Rol
 
 ---
 
-## Experimental: emergent panel (`--emergent`)
+## Duel mode (explore, don't just evaluate)
 
-"Schrödinger mode": instead of picking from the golden-standard roster or the shelf, the problem defines its own panel. The Decomposer generates the 5-7 strongest distinct perspectives the question actually calls for, then mints an ephemeral persona to champion each one — before running the normal per-thesis vote flow. Adversarial Presence is still enforced; nothing here bypasses the panel invariants.
+When triage reads the question as exploratory rather than a formed decision, it routes here instead of the panel. The Decomposer generates the 3-5 strongest perspectives the question actually calls for, then mints a pair for each: a Champion to argue it, and a Tailored Critic — a critic with a biography, purpose-built for that specific idea (not a generic skeptic; an antagonist shaped like "you have watched three rewrites die" for a rewrite-the-service idea), FLIP-disciplined against strawmen. Each pair gets one isolated exchange.
 
-**The trade, honestly:** you get experts shaped by the specific problem instead of a fixed roster stretched to fit it — at the cost of reproducibility. Panel composition is non-deterministic by design, so two `--emergent` runs on the same question can be judged by two different panels. This is a deliberate novelty-vs-reproducibility trade, not a bug. Cost is comparable to a full run (~9-13 calls). Marked experimental — expect rough edges before it settles into the default flow.
+The Judge grades survival on four levels — `clean` / `scarred` / `gutted` / `unproven` — feeding into the same `CONSENSUS_STRENGTH` line the panel uses. A Champion's footnote (one sentence from the Judge on how the Champion would have answered its fatal flaw) fixes last-word bias at zero extra cost, and the Judge also names the un-championed direction — the option nobody was minted to defend. Rejected perspectives don't just disappear: their `FLIP:` tags invert into `Revisit if...` tripwires.
+
+The duel structure follows the author's psychodrama practice: every idea deserves its own antagonist, and the stage decides who enters.
+
+Cost is comparable to a full run (~9-13 calls). `--plan` is recommended here even more than in panel mode — steering which perspectives get minted before paying for duels is cheaper than re-running them. `--emergent` is now a deprecated alias for `--mode duels`.
+
+A full real duel run — four critics with biographies independently converging on a verdict that broke the question's own premise: [`examples/duel-demo.md`](examples/duel-demo.md).
 
 ---
 
@@ -236,7 +253,9 @@ or say "claude consensus" / "consensus panel" in a session.
 | `--no-record` | Skip writing the run record file |
 | `--plan` | Dry-run checkpoint — Triage + Decompose only, then stop for approval before any votes are cast |
 | `--roles` | One-run roster override — `+Shelf-role`, `-Role`, `+name(focus:'...')` for an ephemeral persona |
-| `--emergent` | Experimental — panel composition is derived from the problem instead of the fixed roster |
+| `--mode` | Force `panel` or `duels` instead of relying on triage |
+| `--grain` | `fine` or `coarse` — biases the Lumper/Splitter grain negotiation during decomposition |
+| `--emergent` | Deprecated alias for `--mode duels` |
 
 **External critic (optional, any model):** used only as the anti-groupthink fallback when the panel goes fully unanimous on a security-adjacent thesis. Reached via a small ladder: configure any CLI that takes a prompt and prints text (one line in `SKILL.md`'s Protocol block — the [`gemini` CLI](https://github.com/google-gemini/gemini-cli) works out of the box as the default worked example), or skip the install entirely and use the built-in copy-paste handoff — the skill prints the critic prompt for you to paste into any other model you have, then paste the reply back. Decline either way and the run continues gracefully, with the status reported honestly (e.g. `skipped (user_declined)`) rather than failing.
 
