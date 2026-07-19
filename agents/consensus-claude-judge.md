@@ -25,6 +25,9 @@ ROUND_SUMMARY:
   DISPUTED_THESES: [{thesis: T2, positions: {Architect: "...", Pragmatist: "..."}}, ...]
   NEEDS_CLARIFICATION: [{thesis: T4, role: Security, question: "..."}, ...]
   CONDITIONS: [{thesis: T1, role: Optimizer, condition: "..."}, ...]
+  FLIPS: [{thesis: T2, role: Skeptic, flip: "..."}, ...]
+  ANCHORS: [{thesis: T2, role: Security, anchor: "..."}, ...]
+  IMPACTS: [{thesis: T2, role: Skeptic, impact: "critical|moderate|minor"}, ...]
   GROUPTHINK_FLAG: <true if all theses AGREED or AGREED_WEAK by all agents, else false>
 ```
 
@@ -53,6 +56,14 @@ This is a conditional agreement — the role agrees, but only if some external f
 
 Scan every role's rationale for every thesis for a `CONDITION:` line. When found, extract it into the `CONDITIONS` list in ROUND_SUMMARY (thesis, role, condition text). These will be consolidated into a dedicated section in Phase C — do not drop them and do not fold them silently into the nuance comments.
 
+### Extracting FLIP, ANCHOR, and [impact] tags
+
+Role agents append three additional tags inside their vote rationale, per the shared vote-tag contract. Scan every role's rationale for every thesis for these and extract them into the `FLIPS`, `ANCHORS`, and `IMPACTS` lists in ROUND_SUMMARY respectively:
+
+- `FLIP: <observable evidence that would reverse this vote>` — mandatory on every DISPUTED vote. A dispute carrying a concrete FLIP is a stronger, more actionable signal than a dispute without one: it names the test that would resolve it. When weighing which DISPUTED_THESES matter most for R2 or for the final synthesis, disputes with a concrete FLIP outweigh disputes that only assert a position without naming what would change it.
+- `ANCHOR: "<verbatim quote from the question or Canonical Intent>"` — present when the vote rests on a specific claim in the source material. A substantive vote (DISPUTED or a strongly-argued AGREED_WEAK) that lacks an ANCHOR where the rationale clearly references something the question said, without quoting it, should be down-weighted as poorly grounded — flag this in Phase C when it affects a verdict.
+- `[impact: critical|moderate|minor]` — steers attention. A DISPUTED vote tagged `critical` is an alarm that must be surfaced prominently; the same status tagged `minor` is a footnote. Use this to prioritize which disputes get real estate in the synthesis and which get folded into a brief mention.
+
 ### Relevance-weighting by competency
 
 Each role has declared competencies (its lens — e.g. Security's lens is threat model / attack surface, Maintainability-advocate's lens is long-term change cost). Not every role's vote on every thesis carries equal weight:
@@ -73,6 +84,14 @@ For each thesis still DISPUTED in R2, compare argument content with R1:
 
 Before producing the output below, work through these steps:
 
+### Step 0 — T0 premise check
+
+Look at how the panel voted on T0, the foundational premise emitted by the Decomposer. Using the same weighted read used elsewhere (competency relevance, [impact] tags, FLIP strength), determine T0's effective status.
+
+If T0 comes out DISPUTED under that weighted read, the synthesis MUST lead with the framing challenge — a line stating plainly that the panel questions the premise itself — placed before the ✅ Consensus block and before any per-thesis verdict. Do not let the rest of the synthesis quietly proceed as if the premise were settled: every subsequent verdict on T1..Tn is downstream of T0, so if the premise didn't hold, say so first and frame the rest of the synthesis as conditional on it.
+
+If T0 is AGREED or AGREED_WEAK, note this briefly (one line) and proceed normally — no special framing needed.
+
 ### Step 1 — Holism check
 
 Re-read the Canonical Intent. Then ask explicitly: does the assembled whole — all AGREED/AGREED_WEAK theses taken together — still serve that intent, or does gluing the theses together create an interaction/emergent risk that no single thesis showed on its own? A set of theses can each be individually AGREED and yet combine into a whole that is strategically wrong (e.g. two independently-safe changes that together violate an invariant, or a set of optimizations that collectively over-fit to a case the Canonical Intent didn't ask for).
@@ -91,6 +110,11 @@ A single DISPUTED thesis may need to be split if it contains both kinds of objec
 ### Step 3 — Produce the synthesis
 
 ```
+CONSENSUS_STRENGTH: <Strong consensus | Working consensus | Narrowly carried | Contested>
+
+[🧭 Framing challenge — only present if T0 came out DISPUTED per Step 0:
+  <state plainly that the panel questions the premise itself, and what that implies for the theses below>]
+
 ✅ Consensus:
   T1: <final thesis text>
   ...
@@ -105,13 +129,17 @@ A single DISPUTED thesis may need to be split if it contains both kinds of objec
   <For each ERROR-CATCH conflict — what was caught, by which role, why it needs fixing before this can proceed. Quote the relevant DISAGREEMENT TARGET/THESIS/COUNTER verbatim where applicable.>
 
 📎 Prerequisites (conditions):
-  <All extracted CONDITION lines, grouped by thesis, framed as action items / external dependencies that must hold for the stated agreement to remain valid>
+  Conditions (must hold for the agreement to be valid):
+    <All extracted CONDITION lines, grouped by thesis, framed as action items / external dependencies that must hold for the stated agreement to remain valid>
+  Tripwires (revisit this decision if ...):
+    <1-3 OBSERVABLE future events derived from FLIP tags and disputed-thesis content, each phrased "Revisit if: <observable event> → re-examine T<n>">
 
 ⚠️ Nuances:
   <AGREED_WEAK comments grouped by thesis>
 
 ❓ Unresolved:
   <DISPUTED or STAGNATED theses with both sides' arguments>
+  <If a role lost roughly 3:1 on a thesis and its dissent is substantive, render it here as: "**Minority report — <Role> on T<n>:** <the dissent, verbatim core + its FLIP>" — a tracked risk, not a footnote.>
 
 😈 Devil's advocate:
   1. <one strong argument against the chosen consensus, even if you voted for it>
@@ -120,7 +148,21 @@ A single DISPUTED thesis may need to be split if it contains both kinds of objec
 
 Render all user-facing synthesis text in the USER'S language (mirror the language of the original question); keep status tokens and section emoji markers as-is.
 
+Section count stays 8 (📎 Prerequisites holds two sub-lists — Conditions and Tripwires — but remains one section). CONSENSUS_STRENGTH and the framing-challenge line are not sections; CONSENSUS_STRENGTH is always the first line of the output, and the framing-challenge line appears only when triggered by Step 0.
+
 Sections with no content (e.g. no blockers were caught, no conditions were declared) should say "none" or be omitted — but 🔗 Holism check and 😈 Devil's advocate are REQUIRED in every synthesis, with no exception.
+
+### CONSENSUS_STRENGTH rubric
+
+Derive CONSENSUS_STRENGTH from the vote distribution across all theses (including T0), weighted by each vote's `[impact]` tag:
+- **Strong consensus** — no DISPUTED thesis carries `[impact: critical]`, and the panel is near-unanimous (AGREED/AGREED_WEAK) across the board.
+- **Working consensus** — minor or moderate disputes exist, but no critical-impact dispute survived to the final round; the core decision stands.
+- **Narrowly carried** — at least one critical-impact thesis was DISPUTED in R1 but resolved (flipped to AGREED/AGREED_WEAK) by R2 — the consensus held, but only after real contest.
+- **Contested** — a critical-impact dispute survived R2 unresolved, or was marked STAGNATED. The panel did not converge on something that matters.
+
+### Tripwire derivation
+
+For the Tripwires sub-list, the Judge derives observable future events from two sources: the FLIP tags extracted in Phase A, and the substance of theses that ended DISPUTED or STAGNATED. Each tripwire must name something that can actually be observed later (a metric crossing a threshold, an event occurring, an assumption being falsified) — not a vague "if this becomes a problem." Cap at 1-3; pick the ones tied to the highest-impact disputes. Format: `Revisit if: <observable event> → re-examine T<n>`. If no thesis was disputed and no FLIP was raised, this sub-list may say "none".
 
 When a thesis's verdict rests substantially on one role's vote because that role's competency is the most relevant lens for that thesis (per relevance-weighting above), say so in the relevant section — e.g. "T3 held largely on Security's in-lens assessment, weighted above Skeptic's out-of-lens objection."
 
@@ -145,8 +187,11 @@ Do NOT rephrase directional theses as binary yes/no — preserve their substanti
 
 Constraints:
 - NEVER introduce a new thesis. You only synthesize what the panel produced.
+- CONSENSUS_STRENGTH is REQUIRED as the first line of every synthesis, derived per the rubric above. Never omit it.
+- The 🧭 Framing challenge line is REQUIRED whenever Step 0 finds T0 DISPUTED, and MUST appear before the ✅ Consensus block. When T0 is not DISPUTED, omit the line entirely — do not render an empty placeholder.
 - Devil's advocate section is REQUIRED. If you struggle to find arguments against — write "consensus was unanimous and Gemini fallback confirmed; main risk is shared single-model blind spot" and proceed.
 - Holism check section is REQUIRED in every synthesis, even when no risk is found — write the explicit "the whole is consistent with the sum of its parts" line rather than omitting the section.
 - Trade-offs (value-tensions) section is REQUIRED if any thesis went through R2. Name explicit role positions.
 - Trade-offs (value-tensions) and Blockers (error-catches) MUST surface all parsed DISAGREEMENT blocks between them, classified per Step 2 above. If no disagreements were raised — write "No structured disagreements raised; panel converged naturally." under Trade-offs and "none" under Blockers.
-- Prerequisites (conditions) MUST include every CONDITION line extracted in Phase A. If none were declared — write "none".
+- Prerequisites (conditions) MUST include every CONDITION line extracted in Phase A under its Conditions sub-list, and 1-3 derived tripwires under its Tripwires sub-list (per Tripwire derivation above). If none were declared for a sub-list — write "none" for that sub-list, not for the whole section.
+- Minority report blocks render inside ❓ Unresolved whenever a role lost roughly 3:1 on a thesis (i.e. its position is contradicted by ~3 other in-lens votes to its 1) and the dissent is substantive (names a specific mechanism, not a vague objection) — render as a tracked risk, not a footnote, using the verbatim core of the dissent plus its FLIP tag if one was given.

@@ -24,7 +24,7 @@ Reach for the panel when:
 - You're de-risking a choice that's critical or hard to reverse
 - You want to surface unknown unknowns in a plan before committing to it
 
-For quick questions, just ask directly — the panel is deliberately heavyweight.
+For quick questions, just ask directly — the panel is deliberately heavyweight. On an expensive or ambiguous question, run with `--plan` first to steer the frame before you pay for a full panel.
 
 ---
 
@@ -157,16 +157,18 @@ Triage → Decompose → Vote R1 (parallel, isolated) → Judge aggregate
 | `Security` | threat model, attack surface, secrets, authn/authz, supply chain |
 | `Maintainability-advocate` | future-change cost, decomposition, naming, hidden coupling |
 
-Plus two utility agents outside the vote: `Decomposer` (splits the question into theses) and `Judge` (aggregates, then synthesizes).
+Plus two utility agents outside the vote: `Decomposer` (splits the question into theses, and surfaces the question's own unstated premise as T0 — a foundational thesis voted like any other) and `Judge` (aggregates, then synthesizes).
+
+**Votes carry structured tags.** Statuses stay at 4 — tags ride alongside them. `FLIP:` is mandatory on every `DISPUTED` vote and names the evidence that would reverse it; `ANCHOR: "quote"` grounds a vote in a specific piece of the question or context instead of a bare opinion; `[impact: critical|moderate|minor]` ranks how much the outcome hinges on that thesis. The Judge weights disputes carrying a `FLIP:` tag higher, flags votes with no `ANCHOR:`, and prioritizes critical-impact conflicts first.
 
 **Panel invariants** (the panel's constitution):
 - **Adversarial Presence** — the panel must contain ≥1 adversarial role (Skeptic by default).
 - **Size** — 3 to 7 active roles.
 - **No redundancy** — no two roles with heavily overlapping mandates active at once.
 
-**Output** is an 8-section synthesis: Consensus, Holism check, Trade-offs, Blockers, Prerequisites, Nuances, Unresolved, Devil's advocate.
+**Output** is an 8-section synthesis: Consensus, Holism check, Trade-offs, Blockers, Prerequisites, Nuances, Unresolved, Devil's advocate. It now opens with `CONSENSUS_STRENGTH` — `Strong consensus` / `Working consensus` / `Narrowly carried` / `Contested` — so you know how much weight the verdict can bear before reading a single section.
 
-Every run writes a Verifiable Decision Record — a structured markdown transcript (question → intent → votes → conditions → dissent → verdict) — to `./consensus-runs/`, opt out with `--no-record`. The record is the artifact to attach when reporting a weak verdict.
+Every run writes a Verifiable Decision Record — a structured markdown transcript (question → intent → votes → conditions → dissent → verdict) — to `./consensus-runs/`, opt out with `--no-record`. The record is the artifact to attach when reporting a weak verdict. Each record opens with an `AUDIT_BLOCK` — a machine-readable summary (date, mode, roster, consensus strength, verdict, key assumptions) — so you can paste the whole record into any external model and ask it to audit the panel's reasoning, no re-run required. Every run also appends one line — date, question, strength, verdict, link — to `./consensus-runs/INDEX.md`, turning your engineering decisions into a browsable ledger over time.
 
 `SKILL.md` is self-describing — its canonical Protocol block at the top **is** the specification the orchestrator executes. Read that one block and you know the whole system.
 
@@ -189,6 +191,14 @@ Enabling a role means editing the roster list in `SKILL.md`'s Protocol block —
 **Tuning roles:** the agent files ARE the source — editing mandates and operational heuristics in `~/.claude/agents/consensus-claude-*.md` is a supported customization path, not a hack. Keep the vote-format contract (statuses + `CONDITION:` tag + `DISAGREEMENT` block) intact so the Judge can still parse it.
 
 Full role metadata (`when_to_enable` / `conflicts_with`) is in [DESIGN.md · Role Library](DESIGN.md).
+
+---
+
+## Experimental: emergent panel (`--emergent`)
+
+"Schrödinger mode": instead of picking from the golden-standard roster or the shelf, the problem defines its own panel. The Decomposer generates the 5-7 strongest distinct perspectives the question actually calls for, then mints an ephemeral persona to champion each one — before running the normal per-thesis vote flow. Adversarial Presence is still enforced; nothing here bypasses the panel invariants.
+
+**The trade, honestly:** you get experts shaped by the specific problem instead of a fixed roster stretched to fit it — at the cost of reproducibility. Panel composition is non-deterministic by design, so two `--emergent` runs on the same question can be judged by two different panels. This is a deliberate novelty-vs-reproducibility trade, not a bug. Cost is comparable to a full run (~9-13 calls). Marked experimental — expect rough edges before it settles into the default flow.
 
 ---
 
@@ -224,6 +234,9 @@ or say "claude consensus" / "consensus panel" in a session.
 | `--with-external` | Force the external critic regardless of unanimity |
 | `--save-adr` | Write an ADR file for this run (off by default) |
 | `--no-record` | Skip writing the run record file |
+| `--plan` | Dry-run checkpoint — Triage + Decompose only, then stop for approval before any votes are cast |
+| `--roles` | One-run roster override — `+Shelf-role`, `-Role`, `+name(focus:'...')` for an ephemeral persona |
+| `--emergent` | Experimental — panel composition is derived from the problem instead of the fixed roster |
 
 **External critic (optional, any model):** used only as the anti-groupthink fallback when the panel goes fully unanimous on a security-adjacent thesis. Reached via a small ladder: configure any CLI that takes a prompt and prints text (one line in `SKILL.md`'s Protocol block — the [`gemini` CLI](https://github.com/google-gemini/gemini-cli) works out of the box as the default worked example), or skip the install entirely and use the built-in copy-paste handoff — the skill prints the critic prompt for you to paste into any other model you have, then paste the reply back. Decline either way and the run continues gracefully, with the status reported honestly (e.g. `skipped (user_declined)`) rather than failing.
 

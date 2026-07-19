@@ -31,7 +31,7 @@ machine-parseable decision trail, and protection against a "lowest common denomi
 `Triage → Decompose → Vote (R1) → Judge(aggregate) → Vote (R2, disputed only) → Judge(synthesize)`
 
 - **Triage** — is the question within the skill's scope? (see Scope below) If not — decline, panel does not run.
-- **Decompose** — the Decomposer produces `Canonical Intent` (the gist of the task in 1–2 sentences) + atomic theses T1..Tn.
+- **Decompose** — the Decomposer produces `Canonical Intent` (the gist of the task in 1–2 sentences) + `T0` (Premise Distillation — the question's foundational unstated premise, voted like any thesis) + atomic theses T1..Tn.
 - **Vote R1** — panel roles vote on each thesis in parallel and independently (context isolation).
 - **Judge aggregate** — tally the votes, find disputed theses, detect groupthink.
 - **Vote R2** — disputed theses only; roles see each other's R1 positions, must contribute new substance.
@@ -82,12 +82,22 @@ separating the decision itself from its qualification — and parses more precis
 stamping an opinion. The Judge weighs each vote by the relevance of its `competencies` to the thesis.
 No separate status is needed for this.
 
+**Other rationale tags.** Alongside `CONDITION`, a vote's rationale may carry: `FLIP: <observable
+evidence that would reverse this vote>` — mandatory on every `DISPUTED` vote; it turns a dispute into
+a testable position, and the Judge derives revisit-Tripwires from FLIP tags; `ANCHOR:
+"<quote>"` — a verbatim quote from the question/spec/code the vote is grounded in (required when the
+vote rests on a specific claim in the source); `[impact: critical|moderate|minor]` — the voter's own
+severity read, mandatory whenever the vote is `DISPUTED` or `AGREED_WEAK`. All three are optional
+elsewhere and, like `CONDITION`, live inside the rationale text rather than expanding the status
+vocabulary.
+
 ### Rounds & stop conditions
 
 - **Hard cap: R1 + optional R2. Never R3.** If a single model hasn't converged after 2 rounds —
   that's a signal to escalate to the external `consensus-protocol` (Claude+Gemini), not to spin the panel further.
 - R2 only runs if disputed theses remain after aggregation; otherwise — early finalize.
 - Stagnation (R2 arguments are a semantic rehash of R1) → the thesis is marked `STAGNATED`, R3 is not invoked.
+- The final synthesis opens with `CONSENSUS_STRENGTH` (`Strong` / `Working` / `Narrowly carried` / `Contested`) — the Judge's own one-word read on how solid the verdict is, emitted before the rest of Phase C.
 
 ### Anti-groupthink
 
@@ -109,7 +119,9 @@ handoff (Rung 2) when the fallback triggers.
 ### Run record
 
 Every run writes a Verifiable Decision Record by default (`--no-record` to skip) — see the
-dedicated step for the file location and content schema.
+dedicated step for the file location and content schema. The record now opens with a
+machine-readable `AUDIT_BLOCK`, and every run additionally appends one line to
+`./consensus-runs/INDEX.md` — the decision journal across all runs.
 
 ### Scope (boundaries; used in the Triage phase)
 
@@ -157,6 +169,9 @@ Immediately after — for the trigger-phrase path, the deliberateness gate above
 | `--with-external` | Force the external critic regardless of unanimity |
 | `--save-adr` | Save an ADR even for a standard run (by default no ADR is written) |
 | `--no-record` | Skip writing the run record file |
+| `--plan` | Stop after Triage+Decompose: show Canonical Intent + theses for user approval/editing before any panel votes are spent |
+| `--roles "<spec>"` | One-run roster override: `+Shelf-role` enables a shelf role, `-Role` disables an active one, `+name(focus:'...')` mints an ephemeral persona for this run only |
+| `--emergent` | Experimental Schrödinger mode: the problem defines its own panel (see Emergent panel mode) |
 
 Unknown flags: print a warning `⚠️ Unknown flag: <name>, continuing.` and don't stop.
 
@@ -210,21 +225,60 @@ Parse the response. Expected format:
 
 ```
 CANONICAL_INTENT: <gist of the task in 1–2 sentences>
+T0: <Premise Distillation — the question's foundational unstated premise>
 T1: ...
 T2: ...
 ...
 Tn: ...
 ```
 
-**Single-thesis fallback:** if the response contains fewer than 2 valid theses (e.g. the Decomposer produced only T1, or nothing parseable at all) — enter single-thesis mode: treat the user's entire original question as one thesis T1 verbatim, and the Canonical Intent as the question itself. This is a lower-value mode, but the skill doesn't fail outright. Print to the user: `ℹ️ Single-thesis fallback: the task didn't decompose, evaluating as a single thesis T1.`
+**Single-thesis fallback:** if the response contains fewer than 2 valid theses (e.g. the Decomposer produced only T1, or nothing parseable at all) — enter single-thesis mode: treat the user's entire original question as one thesis T1 verbatim, and the Canonical Intent as the question itself. This is a lower-value mode, but the skill doesn't fail outright. Print to the user: `ℹ️ Single-thesis fallback: the task didn't decompose, evaluating as a single thesis T1.` (T0 is still produced and voted normally in this fallback — only T1..Tn collapses to one item.)
 
-Record the Canonical Intent and the final list of theses in variables — they're needed in every following step.
+Record the Canonical Intent and the final list of theses (T0..Tn) in variables — they're needed in every following step.
 
-### Step 3 — R1 panel: dispatch panel subagents IN PARALLEL (single message)
+### Step 3 — `--plan` checkpoint (only if the flag was passed)
+
+If the `--plan` flag was NOT passed → skip this step entirely, continue straight to Step 4.
+
+If `--plan` WAS passed → print the Canonical Intent and the full thesis list (T0..Tn) from Step 2, then stop and print:
+
+> Reply "approve" to dispatch the panel, or reply with edited theses (same T\<n\> format) to use your version.
+
+Wait for the user's next message:
+- **"approve"** (or equivalent) → continue to Step 4 using the theses exactly as produced in Step 2.
+- **Edited theses** (a reply in the same `T<n>: <text>` format) → replace the in-memory Canonical Intent/theses with the user's version, then continue to Step 4 using the edited set. No re-dispatch of the Decomposer — the user's reply IS the new thesis list.
+
+No subagent calls happen in this step — it's a pure orchestrator print-and-wait, spending zero of the panel's model calls, which is the point of the flag (approve/edit before any panel votes are spent).
+
+### Step 4 — R1 panel: dispatch panel subagents IN PARALLEL (single message)
 
 **Critical:** all roster calls go in ONE message from the main model, as parallel tool-use (parallel function calls). This is required for R1 isolation (each agent in a clean context, none sees another's answers).
 
-Dispatch the entire active roster (see Protocol · Roster) in a single message.
+**`--roles` override (only if the flag was passed).** Before assembling the dispatch, apply the
+override to the active roster from Protocol · Roster:
+- `-Role` removes that role from the active roster.
+- `+Shelf-role` enables a role from the shelf (DESIGN.md · Role Library names: `Performance-hawk`,
+  `Product-thinker`, `Scope-cutter`, `Simplicity-advocate`, `Domain-expert`) into the active roster.
+- `+name(focus:'<text>')` mints an ephemeral persona, active for this run only (not saved anywhere).
+  The orchestrator composes its mandate inline: a one-line mandate derived from the focus text, an
+  instruction to vote through that lens only, plus the full vote-format contract (the 4 statuses +
+  CONDITION/FLIP/ANCHOR/[impact] tags, see Protocol · Status vocabulary) injected exactly as it is
+  for a real role. This persona is dispatched alongside the rest of the roster in this same step —
+  it does not get a separate subagent_type, its mandate is inlined into its prompt.
+
+**Invariant guard.** After applying all `--roles` overrides, check the resulting roster against
+Protocol · Panel invariants: Adversarial Presence (≥1 of Skeptic/Security/Scope-cutter, or an
+ephemeral persona whose focus is explicitly adversarial) and Size (3–7). If either is violated,
+the orchestrator says so to the user and keeps `Skeptic` in the roster regardless of the override
+(the guard wins over the user's `-Skeptic` in that one case — invariants are non-negotiable).
+
+If `--roles` was NOT passed → the active roster is exactly Protocol · Roster, unchanged.
+
+**Emergent panel mode (`--emergent`) replaces this entire step** with a different dispatch flow —
+see the dedicated subsection below. Skip straight there if `--emergent` was passed; the rest of
+this step (and the fixed-roster prompt below) does not apply.
+
+Dispatch the entire active roster (post-override, see above) in a single message.
 
 Give each the **same** prompt:
 
@@ -236,6 +290,7 @@ Canonical Intent: <text from Step 2>
 Panel members in this run: <active roster>
 
 Theses:
+T0: <text>
 T1: <text>
 T2: <text>
 ...
@@ -245,12 +300,48 @@ Tn: <text>
 (No `model` parameter is passed — role agents inherit the session's model, per Protocol · Model.)
 
 Wait for all roster subagents to return. Each returns:
-- **Block 1:** line-by-line votes `T<n>: <STATUS> [comment]` (comment may contain `CONDITION: <...>`, see Protocol · Status vocabulary).
+- **Block 1:** line-by-line votes `T<n>: <STATUS> [comment]` (comment may contain `CONDITION:`/`FLIP:`/`ANCHOR:`/`[impact: ...]` tags, see Protocol · Status vocabulary).
 - **Block 2 (Optimizer and Maintainability-advocate only):** a structured `DISAGREEMENT:` block (`TARGET / THESIS / COUNTER`) or fallback `COUNTER: NO_DISAGREEMENT — ...`.
 
 If any agent returned unparseable output → mark its votes as `invalid` (see the Edge cases section above).
 
-### Step 4 — Judge dispatch (Phase A — aggregation)
+#### Emergent panel mode (`--emergent`) — experimental, replaces the fixed-roster dispatch above
+
+**Experimental.** Only runs if the `--emergent` flag was passed; it replaces this entire step's
+fixed-roster dispatch with a different flow. Cost note: up to ~9-13 model calls (higher than the
+default ~6-11, see Step 1). Honest labeling: the panel composition itself becomes non-deterministic
+under this mode — the trade is novelty of perspectives vs. reproducibility of the panel. Print this
+trade-off to the user before dispatching (one line) so it isn't a silent cost/determinism change.
+
+Flow:
+(a) One extra subagent call, made right after Step 2's Decomposer output (before any voting):
+
+```
+Agent(
+  subagent_type="consensus-claude-decomposer",
+  description="Generate emergent perspectives",  prompt="Generate the 5-7 strongest genuinely distinct perspectives/core arguments on this question — one line each, no personas yet. Question: <verbatim user question>. Canonical Intent: <text from Step 2>."
+)
+```
+
+(b) The orchestrator retroactively mints an ephemeral persona to champion each returned perspective
+— same mechanics as a `--roles +name(focus:'...')` persona (Step 4, `--roles` override, above): a
+name, a one-line mandate derived from the perspective, and the full vote-format contract (statuses +
+CONDITION/FLIP/ANCHOR/[impact] tags) injected into its prompt. Cap at max 7 personas, min 3 — if
+fewer than 3 distinct perspectives came back, pad with golden-roster roles (Skeptic first) to reach
+the minimum.
+
+(c) Adversarial Presence check: if none of the generated personas is adversarial by construction,
+add `Skeptic` from the golden roster (Protocol · Roster) to the emergent panel — same invariant as
+the `--roles` guard, applied here because the roster isn't fixed in advance under this mode.
+
+(d) Proceed with the normal per-thesis R1/R2/Judge flow (Steps 4 onward, i.e. this step's dispatch
+mechanics and Steps 5–9) using these emergent personas in place of the golden roster everywhere
+"active roster" is referenced.
+
+(e) The run record (Step 10) lists the emergent roster (names + one-line mandates) and marks the
+run `mode: emergent` in its `AUDIT_BLOCK`.
+
+### Step 5 — Judge dispatch (Phase A — aggregation)
 
 Call ONE subagent:
 
@@ -269,16 +360,16 @@ Parse the Judge's output as a `ROUND_SUMMARY`:
 - `CONDITIONS: [...]` — list of `{thesis, role, condition}` objects, extracted from CONDITION tags (see Protocol · Status vocabulary).
 - `GROUPTHINK_FLAG: <true|false>` — true if ALL theses are AGREED or AGREED_WEAK across ALL agents.
 
-Save this data — needed in Steps 5–8.
+Save this data — needed in Steps 6–9.
 
-### Step 5 — External critic decision
+### Step 6 — External critic decision
 
 Trigger condition (fires if AT LEAST ONE is met):
 
 1. `GROUPTHINK_FLAG == true` **AND** at least one thesis mentions security-adjacent terms: `auth`, `authn`, `authz`, `secret`, `token`, `pii`, `credential`, `credentials`, `encryption`, `encrypt`, `decrypt` (case-insensitive substring match against thesis text).
 2. The user passed the `--with-external` flag.
 
-If neither condition is met → skip this step, set `external_status = not_required`, go to Step 6.
+If neither condition is met → skip this step, set `external_status = not_required`, go to Step 7.
 
 (See Protocol · Anti-groupthink — this is the only point where the skill touches a second model, and only as a hedge, not a default mode.)
 
@@ -321,15 +412,15 @@ Wait for the user's next message.
 
 **Rung 3 — skip.** Reached only via an explicit user decline in Rung 2. `external_status = skipped (user_declined)`, run continues (graceful degradation as before).
 
-**Cross-language note:** the external model may reply in another language — statuses parse the same regardless (the format is a fixed token, not prose). The Judge translates comments into the user's language during synthesis in Step 7.
+**Cross-language note:** the external model may reply in another language — statuses parse the same regardless (the format is a fixed token, not prose). The Judge translates comments into the user's language during synthesis in Step 8.
 
 **External critic's effect on R2 scope:** if the critic brought back at least one `DISPUTED` on a thesis that R1 had settled as `AGREED` — add that thesis to `DISPUTED_THESES` for R2 (even if the entire roster was unanimous).
 
-### Step 6 — R2 dispatch (only DISPUTED theses)
+### Step 7 — R2 dispatch (only DISPUTED theses)
 
-If `DISPUTED_THESES` is empty after Step 4 + Step 5 → **early finalize**, go straight to Step 7 without R2.
+If `DISPUTED_THESES` is empty after Step 5 + Step 6 → **early finalize**, go straight to Step 8 without R2.
 
-Otherwise — dispatch the same roster IN PARALLEL (single message, as in Step 3) with the R2 prompt:
+Otherwise — dispatch the same roster IN PARALLEL (single message, as in Step 4) with the R2 prompt:
 
 ```
 Original question: <verbatim user question>
@@ -360,7 +451,7 @@ For each disputed thesis, return ONE line in same format. You may stick, change,
 
 Wait for the entire roster. If a role continues to emit a DISAGREEMENT block (Optimizer / Maintainability-advocate) — keep it, pass it to the Judge.
 
-### Step 7 — Judge dispatch (Phase B + C — stagnation check + final synthesis)
+### Step 8 — Judge dispatch (Phase B + C — stagnation check + final synthesis)
 
 Call the Judge a second time:
 
@@ -373,11 +464,11 @@ Agent(
 
 The Judge does:
 - **Phase B** — for each thesis still DISPUTED after R2, compares R2's arguments against R1. If the arguments are a semantic rehash of R1 → mark the thesis `STAGNATED: true`. Do not invoke R3.
-- **Phase C** — structured final synthesis in the 8-section schema defined in the Judge mandate (rendered as the Step 8 template below): Consensus, Holism check, Trade-offs, Blockers, Prerequisites, Nuances, Unresolved, Devil's advocate — Holism check and Devil's advocate always required.
+- **Phase C** — opens with `CONSENSUS_STRENGTH` (`Strong`/`Working`/`Narrowly carried`/`Contested`, see Protocol · Rounds & stop conditions), followed by the structured final synthesis in the 8-section schema defined in the Judge mandate (rendered as the Step 9 template below): Consensus, Holism check, Trade-offs, Blockers, Prerequisites, Nuances, Unresolved, Devil's advocate — Holism check and Devil's advocate always required.
 
-Save the Judge's output — it goes into Step 8 verbatim.
+Save the Judge's output — it goes into Step 9 verbatim.
 
-### Step 8 — Render output to user
+### Step 9 — Render output to user
 
 Print to the user as a single block (all in the user's language, per Protocol · Output language, except the internal statuses AGREED/DISPUTED/AGREED_WEAK/NEEDS_CLARIFICATION — these stay as technical markers, see Protocol · Status vocabulary, + the CONDITION tag).
 
@@ -385,6 +476,7 @@ The template below is shown in English as the reference; render it in the user's
 
 ```
 🧠 consensus-claude
+Consensus strength: <Strong|Working|Narrowly carried|Contested>
 Panel: <active roster>
 External critic: <triggered (cli)|triggered (manual)|skipped (user_declined)|invalid_output|not_required>
 
@@ -414,17 +506,29 @@ Mapping `external_status → Output line`:
 
 If `Round 2/2` didn't run (early finalize) — omit the section entirely, print nothing about R2.
 
-### Step 9 — Verifiable Decision Record
+### Step 10 — Verifiable Decision Record
 
 ON by default; opt out with `--no-record` (see Flags). Rationale: this record is the product's auditability story — the artifact to attach when reporting a weak or disputed verdict, since it lets anyone re-derive the synthesis from the raw votes without re-running the panel.
 
-If `--no-record` was passed → skip this step silently, and print `Run record: skipped (--no-record)` in Step 8's output (already covered by the template above).
+If `--no-record` was passed → skip this step silently, and print `Run record: skipped (--no-record)` in Step 9's output (already covered by the template above).
 
 Otherwise, write a structured markdown transcript to `./consensus-runs/YYYY-MM-DD-<slug>.md` relative to cwd (create the `consensus-runs/` directory if it doesn't exist). `<slug>` uses the same rule as the ADR step below: the first 5 significant words of the user's question, lowercase, kebab-case, no punctuation. `YYYY-MM-DD` is today's date.
 
-All content below is already in-context from prior steps — this step performs no new computation, only assembly:
+All content below is already in-context from prior steps — this step performs no new computation, only assembly. The record now OPENS with a machine-readable `AUDIT_BLOCK` — a fenced block of `key: value` lines at the very top of the same file, purpose-built so that this block (or the whole record) can be handed to ANY external model for a post-hoc audit, provider-agnostic:
 
 ```
+AUDIT_BLOCK
+date: YYYY-MM-DD
+question: <one-line, truncated if needed>
+mode: <standard|emergent>
+panel: <active roster from Protocol · Roster (or the emergent roster, see Step 4 · Emergent panel mode), +Decomposer +Judge>
+consensus_strength: <Strong|Working|Narrowly carried|Contested>
+verdict: <one-line summary of the Judge's Phase C consensus>
+key_assumptions:
+  - <bulleted, drawn from T0 (Premise Distillation) + any accepted CONDITION premises>
+  - ...
+record_file: ./consensus-runs/YYYY-MM-DD-<slug>.md
+
 ## Question
 <verbatim user question>
 
@@ -435,21 +539,36 @@ All content below is already in-context from prior steps — this step performs 
 <active roster from Protocol · Roster, +Decomposer +Judge> — <note which model session ran the panel, e.g. "run on: <model name/id of this session>">
 
 ## Votes
-<per-role, verbatim R1 vote lines including CONDITION tags and DISAGREEMENT blocks; if R2 ran, include R2 votes per role as well, verbatim>
+<per-role, verbatim R1 vote lines including CONDITION/FLIP/ANCHOR/[impact] tags and DISAGREEMENT blocks; if R2 ran, include R2 votes per role as well, verbatim>
 
 ## External critic
-<status from Step 5 (external_status) + its verbatim output if it ran; "not_required" if it didn't>
+<status from Step 6 (external_status) + its verbatim output if it ran; "not_required" if it didn't>
 
 ## Judge synthesis
-<the full Phase C output from Step 7, verbatim>
+<the full Phase C output from Step 8, verbatim>
 
 ---
 Generated by consensus-claude vX · LLM output is non-deterministic; this record documents this specific run.
 ```
 
-Save the file path — it is printed as the final line of Step 8's output template (`Run record: ./consensus-runs/<file>.md`).
+Save the file path — it is printed as the final line of Step 9's output template (`Run record: ./consensus-runs/<file>.md`).
 
-### Step 10 — ADR file generation
+**Decision journal append.** After writing the record file, append ONE line to `./consensus-runs/INDEX.md` (create it with a header row if it doesn't exist yet):
+
+```
+| Date | Question | Strength | Verdict | Record |
+|---|---|---|---|---|
+```
+
+The appended line:
+
+```
+| YYYY-MM-DD | <question, truncated ~80ch> | <consensus_strength> | <verdict, one line> | [record](<filename>) |
+```
+
+This runs regardless of whether `--save-adr` was passed — the journal is the running index of every recorded run, independent of ADR generation.
+
+### Step 11 — ADR file generation
 
 By default, no ADR is generated. Review artifacts live in PR comments / notes, not in `docs/decisions/`.
 
