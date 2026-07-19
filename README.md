@@ -4,6 +4,8 @@
 
 This repository is the protocol's reference implementation for Claude Code (formerly `consensus-claude`).
 
+Prefer a plain name? In a session the skill also answers to **"consensus panel"** — the mythology is optional; the mechanics are not.
+
 ## The differentiator
 
 Most review tools score a decision holistically: one pass, one verdict. The Psychodrama Protocol decomposes the question first and votes claim by claim.
@@ -50,6 +52,8 @@ The core insight is transplanted straight from the therapy stage: a problem beco
 | The shadow / the tempter | 🔥 the transgressive voice — the suppressed option, staged at last |
 
 None of this is decoration. Each row is a mechanism you can read in SKILL.md — the stage directions are the source code.
+
+And we ran the protocol on itself. The panel broke the question's own premise, held two minority reports, fact-checked the orchestrator's evidence mid-run, and the verdict — *Narrowly carried* — shipped two product changes before release. Full transcript: [`examples/self-review.md`](examples/self-review.md).
 
 ---
 
@@ -203,7 +207,7 @@ Plus two utility agents outside the vote: `Decomposer` (splits the question into
 
 **Output** is an 8-section synthesis: Consensus, Holism check, Trade-offs, Blockers, Prerequisites, Nuances, Unresolved, Devil's advocate. It now opens with `CONSENSUS_STRENGTH` — `Strong consensus` / `Working consensus` / `Narrowly carried` / `Contested` — so you know how much weight the verdict can bear before reading a single section.
 
-Every run writes a Verifiable Decision Record — a structured markdown transcript (question → intent → votes → conditions → dissent → verdict) — to `./consensus-runs/`, opt out with `--no-record`. The record is the artifact to attach when reporting a weak verdict. Each record opens with an `AUDIT_BLOCK` — a machine-readable summary (date, mode, roster, consensus strength, verdict, key assumptions) — so you can paste the whole record into any external model and ask it to audit the panel's reasoning, no re-run required. Every run also appends one line — date, question, strength, verdict, link — to `./consensus-runs/INDEX.md`, turning your engineering decisions into a browsable ledger over time.
+Every run writes a Verifiable Decision Record — a structured markdown transcript (question → intent → votes → conditions → dissent → verdict) — to `./consensus-runs/`, opt out with `--no-record`. The record is the artifact to attach when reporting a weak verdict. Each record opens with an `AUDIT_BLOCK` — a machine-readable summary (date, mode, roster, consensus strength, verdict, key assumptions) — so you can paste the whole record into any external model and ask it to audit the panel's reasoning, no re-run required. Every run also appends one line — date, question, strength, verdict, link — to `./consensus-runs/INDEX.md`, turning your engineering decisions into a browsable ledger over time. These records contain your questions verbatim — treat as sensitive, and add `consensus-runs/` to `.gitignore` in git repositories (the skill drops a `README.txt` reminder in the directory on first write, and nudges you toward `.gitignore` if it detects a git repo).
 
 `SKILL.md` is self-describing — its canonical Protocol block at the top **is** the specification the orchestrator executes. Read that one block and you know the whole system.
 
@@ -302,7 +306,7 @@ or say "claude consensus" / "consensus panel" in a session.
 | `--summon` | `above`, `below`, or `both` — forces a figure regardless of trigger state |
 | `--no-figures` | Suppresses both figures even if a deadlock trigger fires |
 
-**External critic (optional, any model):** used only as the anti-groupthink fallback when the panel goes fully unanimous on a security-adjacent thesis. Reached via a small ladder: configure any CLI that takes a prompt and prints text (one line in `SKILL.md`'s Protocol block — the [`gemini` CLI](https://github.com/google-gemini/gemini-cli) works out of the box as the default worked example), or skip the install entirely and use the built-in copy-paste handoff — the skill prints the critic prompt for you to paste into any other model you have, then paste the reply back. Decline either way and the run continues gracefully, with the status reported honestly (e.g. `skipped (user_declined)`) rather than failing.
+**External critic (optional, any model):** used only as the anti-groupthink fallback when the panel goes fully unanimous on a security-adjacent thesis. Reached via a small ladder: configure any CLI that takes a prompt and prints text (one line in `SKILL.md`'s Protocol block — the [`gemini` CLI](https://github.com/google-gemini/gemini-cli) works out of the box as the default worked example), or skip the install entirely and use the built-in copy-paste handoff — the skill prints the critic prompt for you to paste into any other model you have, then paste the reply back. Decline either way and the run continues gracefully, with the status reported honestly (e.g. `skipped (user_declined)`) rather than failing. Before anything leaves the machine via the configured CLI, the skill prints a per-run confirmation naming the exact destination command and waits for your approval — `--with-external` forces the critic to fire, but never bypasses this confirmation.
 
 ---
 

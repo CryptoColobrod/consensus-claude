@@ -35,6 +35,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   that is structurally careless about what already works. Must name at least one thing that
   must survive regardless of which side wins.
 
+- `examples/self-review.md` — the protocol run on itself (panel mode + `--summon both`): the premise broken and reformulated, the FLIP contract firing in R2, a mid-run evidence correction, both figures speaking, and two product changes shipped as a result.
+
+### Security
+
+- Per-invocation egress confirmation before the Rung-1 external-critic CLI dispatch, naming the
+  exact destination command and requiring explicit confirmation — not bypassable by
+  `--with-external` (the flag forces the critic, not consent to a specific destination).
+- Run-record sensitivity marker — a `README.txt` written into `./consensus-runs/` on first run,
+  plus a `.gitignore` reminder when cwd is a git repository.
+
 ## [2.0.0] - 2026-07-19
 
 ### Changed (breaking)

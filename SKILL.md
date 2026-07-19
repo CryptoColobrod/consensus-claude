@@ -608,7 +608,15 @@ T2: <thesis text>
 
 Parsing regex (applied to CLI stdout AND to a pasted manual reply, identically): `^T[0-9]+: (AGREED|AGREED_WEAK|DISPUTED|NEEDS_CLARIFICATION)( .*)?$`
 
-**Rung 1 — configured CLI.** The Protocol block's configurable external-critic command line defines the CLI to invoke (default worked example: `gemini -p`). Any CLI that accepts a prompt (as an argument or via stdin) and prints text qualifies — `codex exec`, `ollama run <model>`, etc. Run it via the Bash tool:
+**Rung 1 — configured CLI.** The Protocol block's configurable external-critic command line defines the CLI to invoke (default worked example: `gemini -p`). Any CLI that accepts a prompt (as an argument or via stdin) and prints text qualifies — `codex exec`, `ollama run <model>`, etc.
+
+**Consent gate — required before ANY Rung-1 dispatch, no exceptions.** The theses being sent contain the user's question verbatim. Print this line naming the actual configured command, and wait for confirmation before invoking anything:
+
+```
+External critic: this will send the theses (which contain your question verbatim) to '<configured command>'. Proceed? (yes / skip)
+```
+
+"skip" (or equivalent decline) does NOT set `external_status = skipped (user_declined)` directly — it falls through to the Rung 2 offer, same as an unavailable CLI would. **`--with-external` does not bypass this line.** The flag forces the critic to fire at all; it is not consent to a specific destination — the user still needs to see and approve which command their question is about to be piped to. Only on explicit "yes" proceed to invoke it via the Bash tool:
 
 ```bash
 timeout 30s <configured command> "<prompt>" 2>/dev/null
@@ -619,9 +627,11 @@ Handle exit codes:
 - **any non-zero / timeout / binary not found** → the CLI is unavailable. Fall through to Rung 2.
 - **no command configured at all** → skip straight to Rung 2.
 
-**Rung 2 — manual handoff.** Print the exact critic prompt from above to the user, followed by:
+**Rung 2 — manual handoff.** No gate here — the user is the channel, so they see exactly what leaves before it leaves. Print the exact critic prompt from above to the user, followed by:
 
 > Paste this into any other model you have (web chat is fine), then paste its reply back — or reply "skip".
+>
+> Note: the pasted prompt contains your question verbatim — choose the external model accordingly.
 
 Wait for the user's next message.
 - If the user pastes a reply → parse it with the SAME regex as the CLI path. If it produces at least one valid line → set `external_status = triggered (manual)`. If nothing parses → set `external_status = invalid_output`, continue without the critic.
@@ -814,6 +824,14 @@ Runs for both modes. ON by default; opt out with `--no-record` (see Flags). Rati
 If `--no-record` was passed → skip this step silently, and print `Run record: skipped (--no-record)` in Step 10's (or Step 4f's, in duels mode) output (already covered by the template above).
 
 Otherwise, write a structured markdown transcript to `./consensus-runs/YYYY-MM-DD-<slug>.md` relative to cwd (create the `consensus-runs/` directory if it doesn't exist). `<slug>` uses the same rule as the ADR step below: the first 5 significant words of the user's question, lowercase, kebab-case, no punctuation. `YYYY-MM-DD` is today's date.
+
+**Sensitivity marker — first run only.** On the FIRST run that creates the `./consensus-runs/` directory (i.e., the directory did not exist before this step), also write a `README.txt` into it:
+
+```
+These records contain your questions and the panel's full deliberations verbatim. Treat as sensitive. If this directory is inside a git repository, add consensus-runs/ to .gitignore.
+```
+
+Additionally, if cwd is inside a git repository (a `.git` directory exists at cwd or an ancestor), print one reminder line suggesting the `.gitignore` addition — suggest only, never edit the user's `.gitignore` silently.
 
 All content below is already in-context from prior steps — this step performs no new computation, only assembly. The record now OPENS with a machine-readable `AUDIT_BLOCK` — a fenced block of `key: value` lines at the very top of the same file, purpose-built so that this block (or the whole record) can be handed to ANY external model for a post-hoc audit, provider-agnostic. **Panel-mode template** (used when the resolved mode is `panel`):
 
