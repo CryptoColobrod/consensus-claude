@@ -320,6 +320,15 @@ contact with a real audience can produce.
 
 *(Faithful translations; both spoke in Russian, the run's user language.)*
 
+> **Transparency note — figures do not divine; they are pointed.** The summoning prompts gave
+> each figure the stage context: the surviving tensions, and — for the transgressive voice — the
+> author's real situation (solo founder, the actual startup as day job, zero users yet), because
+> the question under review was itself about the author's goals. One detail (the author's stated
+> quarterly priority) reached the figure through the workspace context that subagents inherit in
+> Claude Code, not through the prompt. The sharpness of a figure's strike depends on how honestly
+> the orchestrator frames the stage — a figure summoned onto a vague stage produces a vague
+> transgression.
+
 ### 🕊 OUTSIDE THE FRAME
 
 **WHAT THE DEADLOCK REVEALS:** All three surviving tensions are one tension in three masks: each
