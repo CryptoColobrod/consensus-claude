@@ -4,6 +4,21 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.0.0] - 2026-07-19
+
+### Changed (breaking)
+
+- Renamed: repository `consensus-claude` → `psychodrama-protocol` (old GitHub URLs redirect);
+  skill directory → `~/.claude/skills/psychodrama-protocol/`; agent files →
+  `psychodrama-*.md`; slash command → `/psychodrama-protocol`. Migration from v1.x: remove old
+  files (`rm -rf ~/.claude/skills/consensus-claude && rm ~/.claude/agents/consensus-claude-*.md`),
+  then install fresh.
+
+### Added
+
+- "Why a psychodramatist built this" — the author section with the Moreno→mechanics mapping.
+- 🪑 The empty chair — the feature name for the un-championed direction check.
+
 ## [1.3.0] - 2026-07-19
 
 ### Added

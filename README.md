@@ -1,10 +1,12 @@
-# consensus-claude
+# The Psychodrama Protocol
 
-A multi-perspective consensus panel for [Claude Code](https://claude.com/claude-code) that votes on each atomic thesis of a question separately — not on the answer as a whole.
+**Put your decision on stage.** A [Claude Code](https://claude.com/claude-code) skill that debates your question through a panel of adversarial AI roles — thesis-by-thesis voting for formed decisions, duels with critics built for each idea for open ones. Never the answer as one blob.
+
+This repository is the protocol's reference implementation for Claude Code (formerly `consensus-claude`).
 
 ## The differentiator
 
-Most review tools score a decision holistically: one pass, one verdict. `consensus-claude` decomposes the question first and votes claim by claim.
+Most review tools score a decision holistically: one pass, one verdict. The Psychodrama Protocol decomposes the question first and votes claim by claim.
 
 - **Per-thesis decomposition.** An isolated Decomposer agent splits the question into 3–7 atomic decision criteria. A binary "A or B" question becomes independent criteria to evaluate — never a mirror pair like "T1: choose A / T2: choose B."
 - **4-status voting per thesis** — `AGREED` / `AGREED_WEAK` / `DISPUTED` / `NEEDS_CLARIFICATION` — plus a `CONDITION:` tag for conditional agreement ("yes, if this external dependency holds"), instead of bloating the status vocabulary with a 5th state.
@@ -12,7 +14,7 @@ Most review tools score a decision holistically: one pass, one verdict. `consens
 - **Single-model by design.** The panel's independent perspectives come from role isolation within one apex model — distinct mandates, clean contexts, no cross-talk in R1 — not from paying for three API keys across three providers. An external critic enters only as an anti-groupthink tripwire when the panel goes suspiciously unanimous, and it's provider-agnostic: configure any CLI in one line, or fall back to a copy-paste prompt handoff to whatever model you already have — never the default mode.
 - **Critics with biographies, not a generic skeptic.** Criticism quality scales with critic specificity — in duel mode, each explored direction gets a critic with a biography: an antagonist shaped by the failures of exactly that idea's class, not a fixed adversarial role stretched to fit every idea.
 
-**vs. alternatives:** tools like [agent-review-panel](https://github.com/wan-huiyan/agent-review-panel) review a document holistically, as one blob. Multi-model council tools require multiple model providers by default. `consensus-claude`'s unit of judgment is the individual claim, and it needs exactly one model to do it.
+**vs. alternatives:** tools like [agent-review-panel](https://github.com/wan-huiyan/agent-review-panel) review a document holistically, as one blob. Multi-model council tools require multiple model providers by default. The Psychodrama Protocol's unit of judgment is the individual claim, and it needs exactly one model to do it.
 
 **Heads-up on cost:** one full run = ~6-11 calls on your strongest available model (decomposer + 4 role votes + judge, plus targeted round-2 re-votes when theses are disputed). Expect several minutes and meaningful quota use on subscription plans. Built for decisions that deserve it — not for quick questions.
 
@@ -26,6 +28,27 @@ Reach for the panel when:
 - You want to surface unknown unknowns in a plan before committing to it
 
 For quick questions, just ask directly — the panel is deliberately heavyweight. On an expensive or ambiguous question, run with `--plan` first to steer the frame before you pay for a full panel — this matters most in duel mode, where `--plan` lets you steer which perspectives get minted before paying for duels.
+
+---
+
+## Why a psychodramatist built this
+
+Konstantin Shvedov is a practicing psychologist and psychodramatist. He also builds SessionFlow, an AI platform for psychotherapists.
+
+The core insight is transplanted straight from the therapy stage: a problem becomes tractable when it is *staged* — given to roles, each with its own mandate to fight for. Nobody resolves a conflict by holding it in their head as one blob; you put each side in a chair and let it argue. The protocol is Moreno's psychodrama, mapped onto decision engineering.
+
+| Psychodrama (Moreno) | The Protocol |
+|---|---|
+| The stage | the run: isolated contexts where roles play out |
+| Auxiliary egos | the panel roles / minted champions |
+| The hidden critic | Skeptic + GROUPTHINK_FLAG (an alarm for the critic's *silence*) |
+| Tailored antagonists | critics with biographies — an opponent built from this idea's failure class |
+| The empty chair | the Judge must name the direction nobody was minted to defend |
+| Surplus reality | duel mode: the problem generates voices that do not exist until staged |
+| Role reversal | perspective swap *(roadmap)* |
+| The figure above the system | outside-the-frame voice on deadlock *(roadmap)* |
+
+None of this is decoration. Each row is a mechanism you can read in SKILL.md — the stage directions are the source code.
 
 ---
 
@@ -199,7 +222,7 @@ The golden-standard roster above is active by default. An optional shelf of role
 
 Enabling a role means editing the roster list in `SKILL.md`'s Protocol block — markdown is the config, there's no loader and no runtime machinery to route around. Skeptic is the default satisfier of the Adversarial Presence invariant; `Security` and `Scope-cutter` also qualify if you swap Skeptic out.
 
-**Tuning roles:** the agent files ARE the source — editing mandates and operational heuristics in `~/.claude/agents/consensus-claude-*.md` is a supported customization path, not a hack. Keep the vote-format contract (statuses + `CONDITION:` tag + `DISAGREEMENT` block) intact so the Judge can still parse it.
+**Tuning roles:** the agent files ARE the source — editing mandates and operational heuristics in `~/.claude/agents/psychodrama-*.md` is a supported customization path, not a hack. Keep the vote-format contract (statuses + `CONDITION:` tag + `DISAGREEMENT` block) intact so the Judge can still parse it.
 
 Full role metadata (`when_to_enable` / `conflicts_with`) is in [DESIGN.md · Role Library](DESIGN.md).
 
@@ -209,7 +232,7 @@ Full role metadata (`when_to_enable` / `conflicts_with`) is in [DESIGN.md · Rol
 
 When triage reads the question as exploratory rather than a formed decision, it routes here instead of the panel. The Decomposer generates the 3-5 strongest perspectives the question actually calls for, then mints a pair for each: a Champion to argue it, and a Tailored Critic — a critic with a biography, purpose-built for that specific idea (not a generic skeptic; an antagonist shaped like "you have watched three rewrites die" for a rewrite-the-service idea), FLIP-disciplined against strawmen. Each pair gets one isolated exchange.
 
-The Judge grades survival on four levels — `clean` / `scarred` / `gutted` / `unproven` — feeding into the same `CONSENSUS_STRENGTH` line the panel uses. A Champion's footnote (one sentence from the Judge on how the Champion would have answered its fatal flaw) fixes last-word bias at zero extra cost, and the Judge also names the un-championed direction — the option nobody was minted to defend. Rejected perspectives don't just disappear: their `FLIP:` tags invert into `Revisit if...` tripwires.
+The Judge grades survival on four levels — `clean` / `scarred` / `gutted` / `unproven` — feeding into the same `CONSENSUS_STRENGTH` line the panel uses. A Champion's footnote (one sentence from the Judge on how the Champion would have answered its fatal flaw) fixes last-word bias at zero extra cost, and the Judge also names 🪑 the empty chair (the un-championed direction) — the option nobody was minted to defend. Rejected perspectives don't just disappear: their `FLIP:` tags invert into `Revisit if...` tripwires.
 
 The duel structure follows the author's psychodrama practice: every idea deserves its own antagonist, and the stage decides who enters.
 
@@ -224,10 +247,10 @@ A full real duel run — four critics with biographies independently converging 
 **Requirements:** Claude Code (the skill orchestrates panel roles via its subagent tool).
 
 ```bash
-git clone https://github.com/CryptoColobrod/consensus-claude.git && cd consensus-claude
-mkdir -p ~/.claude/skills/consensus-claude ~/.claude/agents
-cp SKILL.md DESIGN.md ~/.claude/skills/consensus-claude/
-cp agents/consensus-claude-*.md ~/.claude/agents/
+git clone https://github.com/CryptoColobrod/psychodrama-protocol.git && cd psychodrama-protocol
+mkdir -p ~/.claude/skills/psychodrama-protocol ~/.claude/agents
+cp SKILL.md DESIGN.md ~/.claude/skills/psychodrama-protocol/
+cp agents/psychodrama-*.md ~/.claude/agents/
 ```
 
 > Agent files must land at the **top level** of `~/.claude/agents/` — Claude Code does not scan subdirectories for agent definitions.
@@ -239,7 +262,7 @@ cp agents/consensus-claude-*.md ~/.claude/agents/
 **Usage:**
 
 ```
-/consensus-claude <your question>
+/psychodrama-protocol <your question>
 ```
 
 or say "claude consensus" / "consensus panel" in a session.
@@ -266,7 +289,7 @@ or say "claude consensus" / "consensus panel" in a session.
 **Update:**
 
 ```bash
-cd consensus-claude && git pull
+cd psychodrama-protocol && git pull
 ```
 
 then re-run the two `cp` commands from the install block above.
@@ -274,13 +297,13 @@ then re-run the two `cp` commands from the install block above.
 **Uninstall:**
 
 ```bash
-rm -rf ~/.claude/skills/consensus-claude
-rm ~/.claude/agents/consensus-claude-*.md
+rm -rf ~/.claude/skills/psychodrama-protocol
+rm ~/.claude/agents/psychodrama-*.md
 ```
 
-The `consensus-claude-*` prefix on every agent file makes the second glob safe — it won't touch any unrelated agent files in `~/.claude/agents/`.
+The `psychodrama-*` prefix on every agent file makes the second glob safe — it won't touch any unrelated agent files in `~/.claude/agents/`.
 
-**Footprint:** the skill adds 6 prefixed entries to your global agent list (`~/.claude/agents/consensus-claude-*.md`) plus `SKILL.md`/`DESIGN.md` under `~/.claude/skills/consensus-claude/`. Runs also write records to `./consensus-runs/` in whatever working directory you ran the skill from — those are plain markdown files and can be deleted freely at any time.
+**Footprint:** the skill adds 6 prefixed entries to your global agent list (`~/.claude/agents/psychodrama-*.md`) plus `SKILL.md`/`DESIGN.md` under `~/.claude/skills/psychodrama-protocol/`. Runs also write records to `./consensus-runs/` in whatever working directory you ran the skill from — those are plain markdown files and can be deleted freely at any time.
 
 ---
 
@@ -298,4 +321,4 @@ Output follows the user's language; internal status tokens (`AGREED`, `DISPUTED`
 
 MIT — see [LICENSE](LICENSE).
 
-`consensus-claude` is a community project, not affiliated with or endorsed by Anthropic.
+The Psychodrama Protocol is a community project, not affiliated with or endorsed by Anthropic.

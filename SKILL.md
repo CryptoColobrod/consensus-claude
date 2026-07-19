@@ -1,11 +1,11 @@
 ---
-name: consensus-claude
-description: Multi-perspective consensus via single-model subagents with distinct roles. Use when the user says "claude consensus" / "consensus panel" or invokes /consensus-claude. Claude-only mode by default; pulls in an external critic (any CLI, e.g. Gemini) as anti-groupthink fallback for architecture/security or when all agents agree unanimously.
+name: psychodrama-protocol
+description: The Psychodrama Protocol — adversarial decision review via single-model subagents with distinct roles. Put your decision on stage: per-thesis panel votes for formed decisions, duels with critics-with-biographies for open problems. Use when the user says "psychodrama" / "consensus panel" or invokes /psychodrama-protocol. Pulls in an external critic (any CLI, e.g. Gemini) as anti-groupthink fallback.
 ---
 
-# `consensus-claude`
+# The Psychodrama Protocol
 
-Multi-perspective consensus via subagents of a single model with distinct roles. Runs on an explicit user trigger. Complements `consensus-protocol` (Claude+Gemini), does not replace it.
+Put your decision on stage: a panel of adversarial roles from a single model debates it — thesis by thesis, with critics built for each idea. Complements `consensus-protocol` (Claude+Gemini), does not replace it.
 
 ---
 
@@ -17,8 +17,9 @@ Multi-perspective consensus via subagents of a single model with distinct roles.
 
 ### What it is — one line
 
-`consensus-claude` runs a question through a panel of roles from **a single model** (not a dialogue
-between different models) and produces a synthesis with disagreement explicitly preserved.
+The Psychodrama Protocol puts a question on stage through a panel of roles from **a single model**
+(not a dialogue between different models) and produces a synthesis with disagreement explicitly
+preserved.
 
 ### Differentiator (the one explicit uniqueness claim)
 
@@ -162,16 +163,16 @@ technical tokens.
 ## Trigger
 
 The skill activates on any of:
-- User phrases: "claude consensus", "consensus panel", "run a consensus".
-- Slash command: `/consensus-claude <question>` (flags optional, see below).
+- User phrases: "psychodrama", "put this on stage", "consensus panel" (functional fallback).
+- Slash command: `/psychodrama-protocol <question>` (flags optional, see below).
 
 **Deliberateness gate.** The two trigger paths carry different intent signal:
-- **Slash command** (`/consensus-claude <question>`) is always a deliberate, explicit invocation → proceed directly to Triage. The Step 1 estimate line is sufficient; no confirmation is needed.
-- **Trigger phrase in conversation** ("claude consensus" etc.) may be a casual aside, not a deliberate request for a full panel run → before dispatching any subagent, the orchestrator must print ONE confirm line: `A full run costs ~6-13 model calls (~6-11 panel mode, ~9-13 duels mode) and takes several minutes. Proceed?` and wait for the user's confirmation before continuing to Triage. (The precise mode and its exact estimate are confirmed again in Step 1, once Triage has classified.)
+- **Slash command** (`/psychodrama-protocol <question>`) is always a deliberate, explicit invocation → proceed directly to Triage. The Step 1 estimate line is sufficient; no confirmation is needed.
+- **Trigger phrase in conversation** ("psychodrama" etc.) may be a casual aside, not a deliberate request for a full panel run → before dispatching any subagent, the orchestrator must print ONE confirm line: `A full run costs ~6-13 model calls (~6-11 panel mode, ~9-13 duels mode) and takes several minutes. Proceed?` and wait for the user's confirmation before continuing to Triage. (The precise mode and its exact estimate are confirmed again in Step 1, once Triage has classified.)
 
 **First action** (mandatory, before any subagent calls): print to the user:
 
-> Using consensus-claude: checking scope applicability.
+> Using the Psychodrama Protocol: checking scope applicability.
 
 Immediately after — for the trigger-phrase path, the deliberateness gate above; then in both cases, Triage (Step 0 below).
 
@@ -211,7 +212,7 @@ The main model follows the steps strictly in order. Each step is an atomic actio
 Check against Scope (see Protocol · Scope). This is an instruction to the orchestrator — not a code call.
 
 - Question is in scope → continue to mode routing below.
-- Question is out of scope → polite decline, panel does NOT run. Template: `This is outside consensus-claude's scope (see Scope) — you need <a lawyer/other specialist>, not a decision-review panel.`
+- Question is out of scope → polite decline, panel does NOT run. Template: `This is outside the Psychodrama Protocol's scope (see Scope) — you need <a lawyer/other specialist>, not a decision-review panel.`
 
 **Mode routing.** Once in scope, classify the question into one of the two ceremonies (see Protocol · Phases and Protocol · Duels):
 
@@ -230,13 +231,13 @@ Save the resolved mode — it drives every step from here on (Step 4 onward fork
 Immediately after the greeting and successful Triage, print the classification line, extended with an upfront cost estimate so the user sees the cost before any subagent is dispatched:
 
 ```
-🧠 consensus-claude · Mode: panel · Panel: <active roster> (+Decomposer +Judge) · ~6-11 model calls · several minutes
+🧠 The Psychodrama Protocol · Mode: panel · Panel: <active roster> (+Decomposer +Judge) · ~6-11 model calls · several minutes
 ```
 
 or, in `duels` mode:
 
 ```
-🧠 consensus-claude · Mode: duels · 3-5 perspectives, each a Champion+Tailored Critic duel (+Decomposer +Judge) · ~9-13 model calls · several minutes
+🧠 The Psychodrama Protocol · Mode: duels · 3-5 perspectives, each a Champion+Tailored Critic duel (+Decomposer +Judge) · ~9-13 model calls · several minutes
 ```
 
 Where `<active roster>` is the list of roles from Protocol · Roster (dynamic, not a literal in this file). The `~6-11 model calls` figure is fixed: 6 = R1 minimum (1 Decomposer + 4 votes + 1 Judge pass); 11 = with a full targeted R2 (+4 re-votes +1 additional Judge pass). The `~9-13 model calls` figure for duels mode: 1 Decomposer (dialectic decompose) + 1 perspective generation + 2N duel calls for N=3–5 perspectives + 1 Judge pass.
@@ -254,7 +255,7 @@ Call ONE subagent:
 
 ```
 Agent(
-  subagent_type="consensus-claude-decomposer",
+  subagent_type="psychodrama-decomposer",
   description="Decompose into theses",  prompt="Decompose: <verbatim user question>[. Grain preference: fine|coarse]"
 )
 ```
@@ -364,7 +365,7 @@ no per-thesis voting in duels mode). This call replaces the roster dispatch of S
 
 ```
 Agent(
-  subagent_type="consensus-claude-decomposer",
+  subagent_type="psychodrama-decomposer",
   description="Generate perspectives",  prompt="Generate the 3-5 strongest genuinely distinct perspectives/directions on this question — one line each, no personas yet. Settle the count/grain yourself via the same Lumper⚔Splitter dialectic used for thesis decomposition (Protocol · Decompose), and report a GRAIN trace line for the perspective set. Question: <verbatim user question>. Canonical Intent: <text from Step 2>.[ Grain preference: fine|coarse]"
 )
 ```
@@ -435,31 +436,32 @@ mark `unproven`).
 ### Step 4d — Duel mode: Judge synthesis (1 call)
 
 Call ONE subagent, dispatched with the duel-mode inputs per the judge mandate's Duel mode section
-(`agents/consensus-claude-judge.md`):
+(`agents/psychodrama-judge.md`):
 
 ```
 Agent(
-  subagent_type="consensus-claude-judge",
+  subagent_type="psychodrama-judge",
   description="Duel synthesis",  prompt="Duel mode. Original question: <q>. Canonical Intent: <intent>. GRAIN: <perspective GRAIN trace from Step 4a>. Perspectives: <list from Step 4a>.\n\nDuel transcripts:\n\n<perspective 1>:\nChampion:\n<full Champion output>\nCritic:\n<full Critic output>\n\n<perspective 2>:\n...\n(repeat for every perspective)"
 )
 ```
 
 The Judge (per its Duel mode mandate) works through, in order: per-duel `SURVIVAL` grade
-(`clean`/`scarred`/`gutted`/`unproven`) + Champion's footnote; the un-championed-direction check;
-cross-duel trade-offs/untested hybrids/unanswered points; a unified `CONSENSUS_STRENGTH` line (same
-vocabulary as panel mode, fed by SURVIVAL); verdict + prerequisites + tripwires (every rejected
-perspective's Critic-FLIP inverts into a revisit trigger, 1-3 tripwires) + Devil's advocate.
+(`clean`/`scarred`/`gutted`/`unproven`) + Champion's footnote; the empty chair (the un-championed
+direction) check; cross-duel trade-offs/untested hybrids/unanswered points; a unified
+`CONSENSUS_STRENGTH` line (same vocabulary as panel mode, fed by SURVIVAL); verdict + prerequisites
++ tripwires (every rejected perspective's Critic-FLIP inverts into a revisit trigger, 1-3
+tripwires) + Devil's advocate.
 
 Save the Judge's output — it goes into Step 4e verbatim.
 
 ### Step 4e — Duel mode: render output to user
 
 Print to the user as a single block (user's language, per Protocol · Output language; statuses/grades
-stay English), using the Judge's duel-mode output schema (`agents/consensus-claude-judge.md` · Duel
+stay English), using the Judge's duel-mode output schema (`agents/psychodrama-judge.md` · Duel
 mode · Output schema):
 
 ```
-🧠 consensus-claude · Mode: duels
+🧠 The Psychodrama Protocol · Mode: duels
 CONSENSUS_STRENGTH: <Strong|Working|Narrowly carried|Contested> — <clause>
 GRAIN: <perspective GRAIN trace from Step 4a>
 
@@ -467,7 +469,7 @@ GRAIN: <perspective GRAIN trace from Step 4a>
   <perspective> — SURVIVAL: <clean|scarred|gutted|unproven> · <one-line why> · Footnote: <champion's answer>
   ...
 
-🔍 Un-championed direction: <paragraph or defended "field covers the intent">
+🪑 The empty chair (the un-championed direction): <paragraph or defended "field covers the intent">
 
 🔀 Trade-offs (between survivors): <...>
 🧪 Untested hybrids: <labeled observations or "none">
@@ -492,7 +494,7 @@ Call ONE subagent:
 
 ```
 Agent(
-  subagent_type="consensus-claude-judge",
+  subagent_type="psychodrama-judge",
   description="Aggregate R1 votes",  prompt="Phase A. Original question: <q>. Canonical Intent: <intent>. Theses: <T1..Tn full text>. R1 votes:\n\nOptimizer:\n<full Optimizer output>\n\nSkeptic:\n<full Skeptic output>\n\nSecurity:\n<full Security output>\n\nMaintainability-advocate:\n<full Maintainability-advocate output>"
 )
 ```
@@ -609,7 +611,7 @@ Call the Judge a second time:
 
 ```
 Agent(
-  subagent_type="consensus-claude-judge",
+  subagent_type="psychodrama-judge",
   description="Final synthesis",  prompt="Phase B+C. Original question: <q>. Canonical Intent: <intent>. Theses: <T1..Tn full text>. R1 votes:\n<full roster + external critic if it ran>\n\nR2 votes (disputed only):\n<full roster on disputed theses>"
 )
 ```
@@ -629,7 +631,7 @@ Print to the user as a single block (all in the user's language, per Protocol ·
 The template below is shown in English as the reference; render it in the user's language in practice:
 
 ```
-🧠 consensus-claude
+🧠 The Psychodrama Protocol
 Consensus strength: <Strong|Working|Narrowly carried|Contested>
 Panel: <active roster>
 External critic: <triggered (cli)|triggered (manual)|skipped (user_declined)|invalid_output|not_required>
@@ -702,7 +704,7 @@ record_file: ./consensus-runs/YYYY-MM-DD-<slug>.md
 <the full Phase C output from Step 8, verbatim>
 
 ---
-Generated by consensus-claude vX · LLM output is non-deterministic; this record documents this specific run.
+Generated by psychodrama-protocol vX · LLM output is non-deterministic; this record documents this specific run.
 ```
 
 **Duels-mode template** (used when the resolved mode is `duels` — same file location, same
@@ -743,7 +745,7 @@ if it ran separately, Step 4a's — this is the one place the full dialectic is 
 <the full duel-mode output from Step 4d, verbatim, including per-duel SURVIVAL + footnotes>
 
 ---
-Generated by consensus-claude vX · LLM output is non-deterministic; this record documents this specific run.
+Generated by psychodrama-protocol vX · LLM output is non-deterministic; this record documents this specific run.
 ```
 
 Save the file path — it is printed as the final line of Step 9's (or Step 4e's) output template (`Run record: ./consensus-runs/<file>.md`).

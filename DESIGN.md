@@ -1,13 +1,16 @@
 ---
 created: 2026-05-21
-updated: 2026-07-18
+updated: 2026-07-19
 type: design
 status: mvp
 tags: [skill, consensus, multi-agent, claude-only]
 related: [[consensus-protocol]]
 ---
 
-# `consensus-claude` — Design
+# The Psychodrama Protocol — Design
+
+> **Renamed July 2026:** `consensus-claude` → `psychodrama-protocol`. This document doubles as the
+> project's design log; historical references to the old name below are preserved as written.
 
 A Claude Code skill: multi-perspective consensus via subagents with distinct roles. One apex model, different system prompts. Runs within a Claude subscription (no extra API cost). Complements `consensus-protocol` (Claude+Gemini) — doesn't replace it.
 

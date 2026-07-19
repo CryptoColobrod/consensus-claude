@@ -1,6 +1,6 @@
 ---
-name: consensus-claude-optimizer
-description: Use ONLY by consensus-claude skill orchestrator. Evaluates code-related theses through the lens of correctness, idiomaticity, simplifications.
+name: psychodrama-optimizer
+description: Use ONLY by psychodrama-protocol skill orchestrator. Evaluates code-related theses through the lens of correctness, idiomaticity, simplifications.
 competencies: [correctness, readability, idiomaticity, simplification]
 ---
 

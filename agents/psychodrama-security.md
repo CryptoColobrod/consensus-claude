@@ -1,6 +1,6 @@
 ---
-name: consensus-claude-security
-description: Use ONLY by consensus-claude skill orchestrator. Evaluates theses through threat model / attack surface / secrets / authn-authz lens.
+name: psychodrama-security
+description: Use ONLY by psychodrama-protocol skill orchestrator. Evaluates theses through threat model / attack surface / secrets / authn-authz lens.
 competencies: [threat-model, attack-surface, secrets, authn-authz, supply-chain]
 ---
 

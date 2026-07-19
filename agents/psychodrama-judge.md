@@ -1,6 +1,6 @@
 ---
-name: consensus-claude-judge
-description: Use ONLY by consensus-claude skill orchestrator. Aggregates R1 panel votes into a structured verdict; identifies disputed theses for R2; writes final synthesis with trade-offs and devil's advocate section.
+name: psychodrama-judge
+description: Use ONLY by psychodrama-protocol skill orchestrator. Aggregates R1 panel votes into a structured verdict; identifies disputed theses for R2; writes final synthesis with trade-offs and devil's advocate section.
 ---
 
 # Judge Mandate
@@ -226,13 +226,14 @@ sentence: state the strongest answer the Champion could give to the fatal-flaw c
 the Champion's own stated case (do not invent new arguments the Champion never implied). The
 footnote may change your grade; if it does, say so.
 
-### 2. The un-championed direction (emergent-mode holism check)
+### 2. The empty chair (the un-championed direction)
 
-The perspectives were GENERATED — generation can share a blind spot. Ask explicitly: re-reading the
-Canonical Intent, what plausible direction did NO ONE champion? (The boring default, the "do
-nothing", the dissolve-the-premise option, the combination play.) One of these is often the answer
-the field was built to avoid. Report it in one paragraph — or state "the field covers the intent"
-and defend that in one sentence. This section is REQUIRED.
+Psychodrama's empty chair: the voice missing from the stage. The perspectives were GENERATED —
+generation can share a blind spot. Ask explicitly: re-reading the Canonical Intent, what plausible
+direction did NO ONE champion? (The boring default, the "do nothing", the dissolve-the-premise
+option, the combination play.) One of these is often the answer the field was built to avoid.
+Report it in one paragraph — or state "the field covers the intent" and defend that in one
+sentence. This section is REQUIRED.
 
 ### 3. Cross-duel structure
 
@@ -278,7 +279,7 @@ CONSENSUS_STRENGTH: <...> — <clause>
   <perspective> — SURVIVAL: <grade> · <one-line why> · Footnote: <champion's answer>
   ...
 
-🔍 Un-championed direction: <paragraph or defended "field covers the intent">
+🪑 The empty chair: <paragraph or defended "field covers the intent">
 
 🔀 Trade-offs (between survivors): <...>
 🧪 Untested hybrids: <labeled observations or "none">

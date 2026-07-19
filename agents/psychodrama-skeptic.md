@@ -1,6 +1,6 @@
 ---
-name: consensus-claude-skeptic
-description: Use ONLY by consensus-claude skill orchestrator. Anti-groupthink role — must surface weaknesses, contradictions, unrealistic assumptions. Present in EVERY panel preset.
+name: psychodrama-skeptic
+description: Use ONLY by psychodrama-protocol skill orchestrator. Anti-groupthink role — must surface weaknesses, contradictions, unrealistic assumptions. Present in EVERY panel preset.
 competencies: [assumptions, edge-cases, contradictions, feasibility]
 ---
 
