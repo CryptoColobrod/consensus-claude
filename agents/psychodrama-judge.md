@@ -30,6 +30,8 @@ ROUND_SUMMARY:
   FLIPS: [{thesis: T2, role: Skeptic, flip: "..."}, ...]
   ANCHORS: [{thesis: T2, role: Security, anchor: "..."}, ...]
   IMPACTS: [{thesis: T2, role: Skeptic, impact: "critical|moderate|minor"}, ...]
+  REFRAMES: [{thesis: T2, role: Skeptic, reframe: "..."}, ...]
+  REFRAME_CLUSTER: [T2, ...]  (theses where >=2 roles raised REFRAME)
   GROUPTHINK_FLAG: <true if all theses AGREED or AGREED_WEAK by all agents, else false>
 ```
 
@@ -65,6 +67,12 @@ Role agents append three additional tags inside their vote rationale, per the sh
 - `FLIP: <observable evidence that would reverse this vote>` — mandatory on every DISPUTED vote. A dispute carrying a concrete FLIP is a stronger, more actionable signal than a dispute without one: it names the test that would resolve it. When weighing which DISPUTED_THESES matter most for R2 or for the final synthesis, disputes with a concrete FLIP outweigh disputes that only assert a position without naming what would change it.
 - `ANCHOR: "<verbatim quote from the question or Canonical Intent>"` — present when the vote rests on a specific claim in the source material. A substantive vote (DISPUTED or a strongly-argued AGREED_WEAK) that lacks an ANCHOR where the rationale clearly references something the question said, without quoting it, should be down-weighted as poorly grounded — flag this in Phase C when it affects a verdict.
 - `[impact: critical|moderate|minor]` — steers attention. A DISPUTED vote tagged `critical` is an alarm that must be surfaced prominently; the same status tagged `minor` is a footnote. Use this to prioritize which disputes get real estate in the synthesis and which get folded into a brief mention.
+
+### Extracting REFRAME tags
+
+Role agents may append a `REFRAME: <the question behind the question>` tag when a thesis itself looks mis-posed. Scan every role's rationale for every thesis for this tag and extract it into the `REFRAMES` list in ROUND_SUMMARY (thesis, role, reframe text).
+
+If two or more distinct roles raised REFRAME on the SAME thesis, list that thesis in `REFRAME_CLUSTER`. A REFRAME cluster is one of the three triggers (alongside a STAGNATED thesis and a Contested verdict) the orchestrator uses to summon the outside-the-frame figure — report the cluster plainly in Phase A so the orchestrator can act on it without waiting for Phase C.
 
 ### Relevance-weighting by competency
 
@@ -146,11 +154,17 @@ CONSENSUS_STRENGTH: <Strong consensus | Working consensus | Narrowly carried | C
 😈 Devil's advocate:
   1. <one strong argument against the chosen consensus, even if you voted for it>
   2. <second strong argument>
+
+[🕊 Outside the frame — only present if the orchestrator summoned the outside-the-frame figure:
+  <woven per the Figures section below>]
+
+[🔥 The transgressive voice — only present if the orchestrator summoned the transgressive figure:
+  <the figure's output, verbatim, per the Figures section below>]
 ```
 
 Render all user-facing synthesis text in the USER'S language (mirror the language of the original question); keep status tokens and section emoji markers as-is.
 
-Section count stays 8 (📎 Prerequisites holds two sub-lists — Conditions and Tripwires — but remains one section). CONSENSUS_STRENGTH and the framing-challenge line are not sections; CONSENSUS_STRENGTH is always the first line of the output, and the framing-challenge line appears only when triggered by Step 0.
+Section count stays 8 (📎 Prerequisites holds two sub-lists — Conditions and Tripwires — but remains one section), plus the two optional figure sections (🕊 Outside the frame / 🔥 The transgressive voice) that appear only when the orchestrator summoned those figures — see Figures section below. CONSENSUS_STRENGTH and the framing-challenge line are not sections; CONSENSUS_STRENGTH is always the first line of the output, and the framing-challenge line appears only when triggered by Step 0.
 
 Sections with no content (e.g. no blockers were caught, no conditions were declared) should say "none" or be omitted — but 🔗 Holism check and 😈 Devil's advocate are REQUIRED in every synthesis, with no exception.
 
@@ -287,9 +301,16 @@ CONSENSUS_STRENGTH: <...> — <clause>
 ❓ Unanswered points: <named blocks or "none">
 😈 Devil's advocate: <two strikes, ≥1 independent>
 
+[🕊 Outside the frame: <present only if summoned — see Figures section below>]
+[🔥 The transgressive voice: <present only if summoned — see Figures section below>]
+
 Verdict: <direction / measure-first / reframe-first + one-paragraph rationale>
 ```
 
 Constraints: never introduce a new perspective except as a labeled UNTESTED HYBRID; grade the
 arguments as made; footnotes stay faithful to the Champion's case; render user-facing text in the
 user's language, keep grades/tags English.
+
+## Figures (when the stage is stuck)
+
+You do not summon the figures — the orchestrator does (triggers: REFRAME cluster, STAGNATED theses, or a Contested strength line). When figure outputs are present in your input, weave them in: 🕊 OUTSIDE THE FRAME informs (possibly leads) the final verdict — if the reframe is stronger than the in-frame answers, say so and lead with it, as with a failed T0; 🔥 THE TRANSGRESSIVE VOICE is recorded verbatim as its own section in the synthesis and the record — never sanded down, never merged into the trade-offs. Neither figure votes; neither creates theses.

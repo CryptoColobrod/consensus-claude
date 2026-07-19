@@ -391,6 +391,9 @@ In v1, the panel is assembled in a way that's category-correct for a markdown sk
 | `Scope-cutter` | Trims the excess from MVP, names what to cut | Risk of over-build, scope creep | — (an adversarial role — can satisfy the Adversarial Presence invariant in place of Skeptic) |
 | `Simplicity-advocate` | Any complexity beyond what the value requires is a bug | Author/panel prone to over-engineering | `Performance-hawk` |
 | `Domain-expert` | A pluggable domain lens (see `--domain-context` in §2) | A narrow, specialized domain | — |
+| `Resource-keeper` | Guards working assets; must name at least one thing that must survive regardless of which side wins | Panel is critic-heavy, risk of discarding a working asset | — (an appreciative-inquiry counterweight, not adversarial — does not satisfy the Adversarial Presence invariant) |
+
+**`Resource-keeper` (shipped in v2.1.0).** The shelf's first role to move from concept to an actual agent file — opt-in via `--roles "+Resource-keeper"`, off by default like the rest of the shelf. Where the golden standard and the rest of the shelf are built to find fault, Resource-keeper's mandate is structurally inverted: every other role's silence on what already works is a blind spot the panel doesn't self-correct for, so Resource-keeper exists specifically to name what must survive the vote regardless of outcome.
 
 **Panel invariants** (defined in Protocol · Panel invariants, repeated here for convenience when picking from the shelf):
 - **Adversarial Presence** — the active panel must include ≥1 adversarial role; the default is `Skeptic`, but `Security` and `Scope-cutter` also qualify.

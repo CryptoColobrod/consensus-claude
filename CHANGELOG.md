@@ -4,6 +4,37 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.1.0] - 2026-07-19
+
+### Added
+
+**The figures (deadlock-breakers)**
+- 🕊 The outside-the-frame voice — a non-voting figure that dissolves a deadlock from above:
+  exits the dispute's terms entirely and reports what the deadlock reveals, the view from
+  outside, a `THE REFRAME:` line, and `Dissolves if:` conditions.
+- 🔥 The transgressive voice — a non-voting figure that breaks a deadlock from below: names the
+  one suppressed option nobody dared put on the table, why it's taboo, its honest price, and
+  what it buys.
+- Triggers — a `REFRAME:` cluster (≥2 roles on one thesis), theses marked `stagnated`, or a
+  `Contested` verdict summon a figure automatically.
+- `--summon above|below|both` — forces a figure regardless of trigger state.
+- `--no-figures` — suppresses both figures even if a deadlock trigger fires.
+- Cost: +1-2 calls, only on deadlock — never on a clean run.
+- Tunable — as with every role in the protocol, the agent files are the source for the figures.
+
+**REFRAME tag**
+- Fifth rationale tag — any voter can raise `REFRAME:` to name the question behind the question
+  when a thesis is mis-posed.
+- Early-summon pipeline — ≥2 roles raising `REFRAME:` on the same thesis summons 🕊 the
+  outside-the-frame voice early, and the reframe feeds the R2 re-vote (sensor → figure
+  pipeline).
+
+**Resource-keeper**
+- The optional shelf's first role shipped as an actual agent file (opt-in via
+  `--roles "+Resource-keeper"`) — the appreciative-inquiry counterweight to a panel of critics
+  that is structurally careless about what already works. Must name at least one thing that
+  must survive regardless of which side wins.
+
 ## [2.0.0] - 2026-07-19
 
 ### Changed (breaking)

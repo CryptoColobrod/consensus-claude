@@ -56,6 +56,7 @@ Plus two utility agents outside the voting panel: `Decomposer` and `Judge`.
 
 Optional roles (shelved, off by default — see DESIGN.md · Role Library for how to enable):
 `Performance-hawk`, `Product-thinker`, `Scope-cutter`, `Simplicity-advocate`, `Domain-expert`.
+First shelf role shipped as a file: `Resource-keeper` (opt-in) — the counterweight to an all-critics panel's loss-aversion.
 
 ### Panel invariants (the panel's constitution)
 
@@ -65,6 +66,16 @@ Optional roles (shelved, off by default — see DESIGN.md · Role Library for ho
 - **Size** — 3 to 7 active roles (diversity of opinion vs. cognitive overload and cost).
 - **No redundancy** — do not include roles with heavily overlapping mandates simultaneously
   (e.g. Optimizer + Performance-hawk), see `conflicts_with` in role metadata.
+
+### The figures (deadlock-breakers)
+
+Two non-voting figures live outside the panel and enter only when the stage is stuck: 🕊 the
+outside-the-frame voice dissolves a deadlock from above (exits the dispute's terms; output = a
+reframe + `dissolves if` lines); 🔥 the transgressive voice breaks it from below (names the
+suppressed option nobody dared stage, with its honest price). Triggers: a `REFRAME` cluster (≥2
+roles, see Status vocabulary above) / a `STAGNATED` thesis / `CONSENSUS_STRENGTH: Contested`;
+`--summon` forces a figure regardless, `--no-figures` suppresses all automatic summoning. One
+appearance each; recorded verbatim; neither votes. Cost: +1-2 calls, only on deadlock.
 
 ### Status vocabulary (frozen at 4 — do NOT expand)
 
@@ -91,9 +102,12 @@ evidence that would reverse this vote>` — mandatory on every `DISPUTED` vote; 
 a testable position, and the Judge derives revisit-Tripwires from FLIP tags; `ANCHOR:
 "<quote>"` — a verbatim quote from the question/spec/code the vote is grounded in (required when the
 vote rests on a specific claim in the source); `[impact: critical|moderate|minor]` — the voter's own
-severity read, mandatory whenever the vote is `DISPUTED` or `AGREED_WEAK`. All three are optional
-elsewhere and, like `CONDITION`, live inside the rationale text rather than expanding the status
-vocabulary.
+severity read, mandatory whenever the vote is `DISPUTED` or `AGREED_WEAK`; `REFRAME: <the dispute
+dissolves if the question/frame itself changed>` — a role's signal that the thesis as posed may be
+the wrong question, not just a wrong answer. When the Judge's Phase A aggregation finds `REFRAME` on
+the same thesis from ≥2 roles (a REFRAME cluster), that's a standing trigger for the 🕊 figure (see
+The figures below) — fired early, before R2. All four tags are optional elsewhere and, like
+`CONDITION`, live inside the rationale text rather than expanding the status vocabulary.
 
 ### Rounds & stop conditions
 
@@ -102,6 +116,7 @@ vocabulary.
 - R2 only runs if disputed theses remain after aggregation; otherwise — early finalize.
 - Stagnation (R2 arguments are a semantic rehash of R1) → the thesis is marked `STAGNATED`, R3 is not invoked.
 - The final synthesis opens with `CONSENSUS_STRENGTH` (`Strong` / `Working` / `Narrowly carried` / `Contested`) — the Judge's own one-word read on how solid the verdict is, emitted before the rest of Phase C.
+- Deadlock is no longer just a flag: a stuck stage (`STAGNATED` or `Contested`) summons the figures (see The figures).
 
 ### Duels (exploration mode)
 
@@ -168,7 +183,7 @@ The skill activates on any of:
 
 **Deliberateness gate.** The two trigger paths carry different intent signal:
 - **Slash command** (`/psychodrama-protocol <question>`) is always a deliberate, explicit invocation → proceed directly to Triage. The Step 1 estimate line is sufficient; no confirmation is needed.
-- **Trigger phrase in conversation** ("psychodrama" etc.) may be a casual aside, not a deliberate request for a full panel run → before dispatching any subagent, the orchestrator must print ONE confirm line: `A full run costs ~6-13 model calls (~6-11 panel mode, ~9-13 duels mode) and takes several minutes. Proceed?` and wait for the user's confirmation before continuing to Triage. (The precise mode and its exact estimate are confirmed again in Step 1, once Triage has classified.)
+- **Trigger phrase in conversation** ("psychodrama" etc.) may be a casual aside, not a deliberate request for a full panel run → before dispatching any subagent, the orchestrator must print ONE confirm line: `A full run costs ~6-13 model calls (~6-11 panel mode, ~9-13 duels mode), +1-2 calls if the stage deadlocks (figures; --no-figures to suppress), and takes several minutes. Proceed?` and wait for the user's confirmation before continuing to Triage. (The precise mode and its exact estimate are confirmed again in Step 1, once Triage has classified.)
 
 **First action** (mandatory, before any subagent calls): print to the user:
 
@@ -190,6 +205,8 @@ Immediately after — for the trigger-phrase path, the deliberateness gate above
 | `--mode panel\|duels` | Forces the ceremony instead of letting Triage classify (see Step 0) |
 | `--grain fine\|coarse` | Biases the Lumper⚔Splitter settlement toward more/fewer theses or perspectives; never silences either voice (see Protocol · Decompose) |
 | `--emergent` | Alias for `--mode duels` (deprecated name) |
+| `--no-figures` | Never summon the deadlock figures automatically |
+| `--summon above\|below\|both` | Force a figure onto the stage regardless of deadlock — 🕊 above, 🔥 below |
 
 Unknown flags: print a warning `⚠️ Unknown flag: <name>, continuing.` and don't stop.
 
@@ -240,7 +257,7 @@ or, in `duels` mode:
 🧠 The Psychodrama Protocol · Mode: duels · 3-5 perspectives, each a Champion+Tailored Critic duel (+Decomposer +Judge) · ~9-13 model calls · several minutes
 ```
 
-Where `<active roster>` is the list of roles from Protocol · Roster (dynamic, not a literal in this file). The `~6-11 model calls` figure is fixed: 6 = R1 minimum (1 Decomposer + 4 votes + 1 Judge pass); 11 = with a full targeted R2 (+4 re-votes +1 additional Judge pass). The `~9-13 model calls` figure for duels mode: 1 Decomposer (dialectic decompose) + 1 perspective generation + 2N duel calls for N=3–5 perspectives + 1 Judge pass.
+Where `<active roster>` is the list of roles from Protocol · Roster (dynamic, not a literal in this file). The `~6-11 model calls` figure is fixed: 6 = R1 minimum (1 Decomposer + 4 votes + 1 Judge pass); 11 = with a full targeted R2 (+4 re-votes +1 additional Judge pass). The `~9-13 model calls` figure for duels mode: 1 Decomposer (dialectic decompose) + 1 perspective generation + 2N duel calls for N=3–5 perspectives + 1 Judge pass. Neither figure includes the figures (deadlock-breakers): +1-2 calls if the stage deadlocks (REFRAME cluster / STAGNATED / Contested), `--no-figures` to suppress — see Protocol · The figures.
 
 (For the trigger-phrase path, this line is printed only after the user has already confirmed via the Trigger section's deliberateness gate — it is not itself the confirmation.)
 
@@ -278,7 +295,7 @@ Tn: ...
 The `GRAIN` line is a feature, not debug info — it is the negotiated-framing trace and MUST be shown
 to the user verbatim, both at the `--plan` checkpoint (Step 3) and in the pre-vote/pre-duel output.
 The full Splitter/Lumper dialectic transcript (the tagged splitter-proposal / lumper-critique /
-settlement blocks) is NOT shown in chat — it goes into the VDR only (Step 10).
+settlement blocks) is NOT shown in chat — it goes into the VDR only (Step 11).
 
 **Single-thesis fallback:** if the response contains fewer than 2 valid theses (e.g. the Decomposer produced only T1, or nothing parseable at all) — enter single-thesis mode: treat the user's entire original question as one thesis T1 verbatim, and the Canonical Intent as the question itself. This is a lower-value mode, but the skill doesn't fail outright. Print to the user: `ℹ️ Single-thesis fallback: the task didn't decompose, evaluating as a single thesis T1.` (T0 is still produced and voted normally in this fallback — only T1..Tn collapses to one item.)
 
@@ -303,8 +320,8 @@ No subagent calls happen in this step — it's a pure orchestrator print-and-wai
 
 ### Step 4 — R1 panel: dispatch panel subagents IN PARALLEL (single message)
 
-**Mode fork.** This step (and Steps 5–9) is the `panel`-mode flow. If the resolved mode (Step 0) is
-`duels` → skip this entire step and Steps 5–9, go straight to **Step 4a** below; Steps 10–11 (VDR,
+**Mode fork.** This step (and Steps 5–10) is the `panel`-mode flow. If the resolved mode (Step 0) is
+`duels` → skip this entire step and Steps 5–10, go straight to **Step 4a** below; Steps 11–12 (VDR,
 ADR) resume afterward and apply to both modes.
 
 **Critical:** all roster calls go in ONE message from the main model, as parallel tool-use (parallel function calls). This is required for R1 isolation (each agent in a clean context, none sees another's answers).
@@ -314,6 +331,8 @@ override to the active roster from Protocol · Roster:
 - `-Role` removes that role from the active roster.
 - `+Shelf-role` enables a role from the shelf (DESIGN.md · Role Library names: `Performance-hawk`,
   `Product-thinker`, `Scope-cutter`, `Simplicity-advocate`, `Domain-expert`) into the active roster.
+  `+Resource-keeper` now resolves to the shipped `psychodrama-resource-keeper` agent file (not a
+  minted persona) — it votes normally alongside the rest of the roster.
 - `+name(focus:'<text>')` mints an ephemeral persona, active for this run only (not saved anywhere).
   The orchestrator composes its mandate inline: a one-line mandate derived from the focus text, an
   instruction to vote through that lens only, plus the full vote-format contract (the 4 statuses +
@@ -454,7 +473,44 @@ tripwires) + Devil's advocate.
 
 Save the Judge's output — it goes into Step 4e verbatim.
 
-### Step 4e — Duel mode: render output to user
+### Step 4e — Duel mode: Figures (deadlock-breakers)
+
+Duels-mode instance of Step 9 — same trigger logic, no early-summon path (REFRAME_CLUSTER is a
+per-thesis panel-mode concept; duels mode has no per-thesis voting). Runs after Step 4d (Judge
+synthesis) arrives, before render (Step 4f):
+
+- **STAGNATED** — a duel graded `unproven` after the anti-strawman retry, or any duel the Judge
+  otherwise flags as stalled → summon 🕊 only.
+- **`CONSENSUS_STRENGTH` is `Contested`** → summon BOTH 🕊 and 🔥.
+- **`--summon above|below|both`** forces the corresponding figure(s) regardless. Overrides
+  `--no-figures`.
+- **`--no-figures`** suppresses the two automatic triggers above.
+- None apply → `figures: none`, skip straight to Step 4f.
+
+Dispatch (one isolated call per figure, no chat), same subagents and cost discipline as Step 9 —
+`psychodrama-outside-frame` (🕊) and `psychodrama-transgressive` (🔥), inputs adapted to duels mode
+(deadlocked perspective(s), Champion+Critic transcripts, REFRAME tags if any surfaced in the duel
+text):
+
+```
+Agent(
+  subagent_type="psychodrama-outside-frame",
+  description="Dissolve the deadlock",  prompt="Original question: <q>. Canonical Intent: <intent>. Deadlocked perspective(s) with strongest both-side arguments:\n<STAGNATED/Contested duel transcripts, Champion + Critic, verbatim>\n\nExit the dispute's terms. Produce a reframe of what this dispute is actually about, plus `dissolves if:` lines."
+)
+```
+
+```
+Agent(
+  subagent_type="psychodrama-transgressive",
+  description="Name the suppressed option",  prompt="Original question: <q>. Canonical Intent: <intent>. Deadlocked perspective(s) with strongest both-side arguments:\n<STAGNATED/Contested duel transcripts, Champion + Critic, verbatim>\n\nName the option nobody dared stage, and its honest price."
+)
+```
+
+One appearance each per run; recorded verbatim; no second Judge pass — figure outputs are appended
+to the rendered synthesis (Step 4f) and the VDR (Step 11) directly. Save `figures:
+<none|🕊|🔥|both>` and the trigger reason — needed for Step 4f's render and Step 11's VDR.
+
+### Step 4f — Duel mode: render output to user
 
 Print to the user as a single block (user's language, per Protocol · Output language; statuses/grades
 stay English), using the Judge's duel-mode output schema (`agents/psychodrama-judge.md` · Duel
@@ -479,12 +535,22 @@ GRAIN: <perspective GRAIN trace from Step 4a>
 
 Verdict: <direction / measure-first / reframe-first + rationale>
 
+<if 🕊 fired (Step 4e):>
+🕊 Outside the frame (<trigger: STAGNATED|Contested|--summon>):
+<🕊's full output, verbatim>
+
+<if 🔥 fired (Step 4e):>
+🔥 The transgressive voice (<trigger: STAGNATED|Contested|--summon>):
+<🔥's full output, verbatim>
+
 Run record: <./consensus-runs/<file>.md | skipped (--no-record)>
 ```
 
-Then continue to Step 10 (VDR) — duels mode writes the same record structure (AUDIT_BLOCK `mode:
-duels`, duel transcripts in place of per-role votes, see Step 10 for the duel-mode field mapping) —
-and Step 11 (ADR) exactly as panel mode does; Steps 5–9 do not run in duels mode.
+If no figure fired — omit both 🕊/🔥 sections entirely, print nothing about figures.
+
+Then continue to Step 11 (VDR) — duels mode writes the same record structure (AUDIT_BLOCK `mode:
+duels`, duel transcripts in place of per-role votes, see Step 11 for the duel-mode field mapping) —
+and Step 12 (ADR) exactly as panel mode does; Steps 5–10 do not run in duels mode.
 
 ### Step 5 — Judge dispatch (Phase A — aggregation)
 
@@ -506,6 +572,7 @@ Parse the Judge's output as a `ROUND_SUMMARY`:
 - `NEEDS_CLARIFICATION: [...]` — separate list.
 - `CONDITIONS: [...]` — list of `{thesis, role, condition}` objects, extracted from CONDITION tags (see Protocol · Status vocabulary).
 - `GROUPTHINK_FLAG: <true|false>` — true if ALL theses are AGREED or AGREED_WEAK across ALL agents.
+- `REFRAME_CLUSTER: [...]` — list of theses where ≥2 roles tagged `REFRAME` in their rationale (see Protocol · Status vocabulary). Non-empty (and `--no-figures` absent) → **early-summon 🕊 now**, before R2 — see Step 9 (Figures), early-summon path. 🕊's output then joins the R2 dispatch context in Step 7.
 
 Save this data — needed in Steps 6–9.
 
@@ -593,6 +660,9 @@ Maintainability-advocate (on disputed):
 <if the external critic fired, add:>
 External critic:
 <external critic's lines for disputed theses only>
+<if 🕊 fired early (REFRAME_CLUSTER, see Step 5), add:>
+🕊 Outside the frame (reframe of the REFRAME-clustered theses):
+<🕊's full output from Step 9's early-summon path, verbatim>
 
 DISPUTED theses to re-evaluate (only these — others are settled):
 T<n>: <text>
@@ -612,19 +682,85 @@ Call the Judge a second time:
 ```
 Agent(
   subagent_type="psychodrama-judge",
-  description="Final synthesis",  prompt="Phase B+C. Original question: <q>. Canonical Intent: <intent>. Theses: <T1..Tn full text>. R1 votes:\n<full roster + external critic if it ran>\n\nR2 votes (disputed only):\n<full roster on disputed theses>"
+  description="Final synthesis",  prompt="Phase B+C. Original question: <q>. Canonical Intent: <intent>. Theses: <T1..Tn full text>. R1 votes:\n<full roster + external critic if it ran>\n\nR2 votes (disputed only):\n<full roster on disputed theses>[\n\n🕊 Outside the frame (early summon, if it fired):\n<🕊's full output from Step 9's early-summon path, verbatim>]"
 )
 ```
 
+If 🕊 fired early (Step 5's `REFRAME_CLUSTER` path), its output is appended to this prompt — the Judge weaves it into Phase C, possibly leading with the reframe (per the Judge mandate).
+
 The Judge does:
 - **Phase B** — for each thesis still DISPUTED after R2, compares R2's arguments against R1. If the arguments are a semantic rehash of R1 → mark the thesis `STAGNATED: true`. Do not invoke R3.
-- **Phase C** — opens with `CONSENSUS_STRENGTH` (`Strong`/`Working`/`Narrowly carried`/`Contested`, see Protocol · Rounds & stop conditions), followed by the structured final synthesis in the 8-section schema defined in the Judge mandate (rendered as the Step 9 template below): Consensus, Holism check, Trade-offs, Blockers, Prerequisites, Nuances, Unresolved, Devil's advocate — Holism check and Devil's advocate always required.
+- **Phase C** — opens with `CONSENSUS_STRENGTH` (`Strong`/`Working`/`Narrowly carried`/`Contested`, see Protocol · Rounds & stop conditions), followed by the structured final synthesis in the 8-section schema defined in the Judge mandate (rendered as the Step 10 template below): Consensus, Holism check, Trade-offs, Blockers, Prerequisites, Nuances, Unresolved, Devil's advocate — Holism check and Devil's advocate always required.
 
-Save the Judge's output — it goes into Step 9 verbatim.
+Save the Judge's output — it goes into Step 10 verbatim, and feeds Step 9 (Figures) next for the end-of-run trigger check.
 
-### Step 9 — Render output to user
+### Step 9 — Figures (deadlock-breakers)
 
-**Panel-mode only.** Duels mode's render step is Step 4e.
+**Runs in both modes**, positioned here (after the final Judge synthesis, before render) for its
+end-of-run trigger check; panel mode also has an early-summon path that fires earlier in the run
+(see below). Panel mode continues to Step 10 (render) afterward; duels mode's equivalent slot is
+**Step 4e** (this same logic, duels-mode inputs) — the duels-mode render step is renumbered to
+**Step 4f** below.
+
+Two figures exist outside the voting panel (Protocol · The figures): 🕊 `psychodrama-outside-frame`
+(dissolves a deadlock from above) and 🔥 `psychodrama-transgressive` (breaks it from below). Neither
+votes. `--no-figures` suppresses every automatic trigger below (a-c); `--summon` (d) still fires even
+with `--no-figures`, since it is an explicit user override, not an automatic one.
+
+**(a) Early-summon path — 🕊 only, panel mode only, fires BEFORE R2 (not here).** Already covered at
+Step 5: if `REFRAME_CLUSTER` is non-empty after Phase A aggregation, dispatch 🕊 immediately —
+
+```
+Agent(
+  subagent_type="psychodrama-outside-frame",
+  description="Reframe: <clustered theses>",  prompt="Original question: <q>. Canonical Intent: <intent>. REFRAME-clustered theses (≥2 roles tagged REFRAME):\nT<n>: <text>\n  <role>: REFRAME: <rationale>\n  <role>: REFRAME: <rationale>\n...\nBoth-sides arguments on these theses (full R1 vote lines, all roles): <...>\n\nExit the dispute's terms. Produce a reframe of the question these theses are actually fighting over, plus `dissolves if:` lines — the condition(s) under which this dispute stops mattering."
+)
+```
+
+Its output is included verbatim in the R2 dispatch context (Step 7) so panel roles see the reframe
+when re-voting, and again in the Step 8 Judge prompt so the final synthesis weaves it in — the
+sensor (REFRAME_CLUSTER) → figure (🕊) → re-vote pipeline. This path does not run again here even
+if triggers (b)/(c) below also fire — 🕊 appears once per run (Protocol · The figures).
+
+**(b)/(c) End-of-run path — evaluated here, after the final Judge synthesis (Step 8) arrives**,
+unless 🕊 already fired via (a) for this run:
+
+- **(b) any thesis is `STAGNATED`** → summon 🕊 only.
+- **(c) `CONSENSUS_STRENGTH` is `Contested`** → summon BOTH 🕊 and 🔥.
+
+**(d) `--summon above|below|both`** forces the corresponding figure(s) regardless of (a)-(c):
+`above` = 🕊, `below` = 🔥, `both` = both. Overrides `--no-figures`.
+
+If none of (a)-(d) apply → `figures: none`, skip straight to render (Step 10).
+
+**Dispatch (one isolated call per figure, no chat):**
+
+```
+Agent(
+  subagent_type="psychodrama-outside-frame",
+  description="Dissolve the deadlock",  prompt="Original question: <q>. Canonical Intent: <intent>. Deadlocked theses with strongest both-side arguments:\n<STAGNATED theses, full vote text>\nREFRAME tags present, if any: <...>\n\nExit the dispute's terms. Produce a reframe of what this dispute is actually about, plus `dissolves if:` lines."
+)
+```
+
+```
+Agent(
+  subagent_type="psychodrama-transgressive",
+  description="Name the suppressed option",  prompt="Original question: <q>. Canonical Intent: <intent>. Deadlocked theses with strongest both-side arguments:\n<STAGNATED theses, full vote text>\nREFRAME tags present, if any: <...>\n\nName the option nobody dared stage, and its honest price."
+)
+```
+
+One appearance each per run; recorded verbatim. **No second Judge pass** — cost discipline: the
+orchestrator appends the figure outputs verbatim to the rendered synthesis (Step 10 / Step 4f) under
+their own headers, and into the VDR (Step 11), rather than re-invoking the Judge to weave them in
+(the exception is the early-summon path (a), where 🕊 is already inside the Judge's own input, per
+above).
+
+Save `figures: <none|🕊|🔥|both>` and the trigger reason (`REFRAME_CLUSTER` / `STAGNATED` /
+`Contested` / `--summon`) — needed for Step 10/4f's render and Step 11's VDR.
+
+### Step 10 — Render output to user
+
+**Panel-mode only.** Duels mode's render step is Step 4f.
 
 Print to the user as a single block (all in the user's language, per Protocol · Output language, except the internal statuses AGREED/DISPUTED/AGREED_WEAK/NEEDS_CLARIFICATION — these stay as technical markers, see Protocol · Status vocabulary, + the CONDITION tag).
 
@@ -650,6 +786,14 @@ Round 2/2 (disputed only):
 
 <Judge Phase C output verbatim — sections ✅ Consensus / 🔗 Holism check / 🔀 Trade-offs (value-tensions) / 🚫 Blockers (error-catches) / 📎 Prerequisites (conditions) / ⚠️ Nuances / ❓ Unresolved / 😈 Devil's advocate>
 
+<if 🕊 fired (Step 9, path a/b/c/d):>
+🕊 Outside the frame (<trigger: REFRAME_CLUSTER|STAGNATED|Contested|--summon>):
+<🕊's full output, verbatim>
+
+<if 🔥 fired (Step 9, path c/d):>
+🔥 The transgressive voice (<trigger: STAGNATED|Contested|--summon>):
+<🔥's full output, verbatim>
+
 Run record: <./consensus-runs/<file>.md | skipped (--no-record)>
 ```
 
@@ -661,12 +805,13 @@ Mapping `external_status → Output line`:
 - `invalid_output` → `skipped (invalid_output)`
 
 If `Round 2/2` didn't run (early finalize) — omit the section entirely, print nothing about R2.
+If no figure fired — omit both 🕊/🔥 sections entirely, print nothing about figures.
 
-### Step 10 — Verifiable Decision Record
+### Step 11 — Verifiable Decision Record
 
 Runs for both modes. ON by default; opt out with `--no-record` (see Flags). Rationale: this record is the product's auditability story — the artifact to attach when reporting a weak or disputed verdict, since it lets anyone re-derive the synthesis from the raw votes without re-running the panel.
 
-If `--no-record` was passed → skip this step silently, and print `Run record: skipped (--no-record)` in Step 9's (or Step 4e's, in duels mode) output (already covered by the template above).
+If `--no-record` was passed → skip this step silently, and print `Run record: skipped (--no-record)` in Step 10's (or Step 4f's, in duels mode) output (already covered by the template above).
 
 Otherwise, write a structured markdown transcript to `./consensus-runs/YYYY-MM-DD-<slug>.md` relative to cwd (create the `consensus-runs/` directory if it doesn't exist). `<slug>` uses the same rule as the ADR step below: the first 5 significant words of the user's question, lowercase, kebab-case, no punctuation. `YYYY-MM-DD` is today's date.
 
@@ -683,6 +828,7 @@ verdict: <one-line summary of the Judge's Phase C consensus>
 key_assumptions:
   - <bulleted, drawn from T0 (Premise Distillation) + any accepted CONDITION premises>
   - ...
+figures: <none|🕊|🔥|both> (<trigger: REFRAME_CLUSTER|STAGNATED|Contested|--summon|none>)
 record_file: ./consensus-runs/YYYY-MM-DD-<slug>.md
 
 ## Question
@@ -703,6 +849,9 @@ record_file: ./consensus-runs/YYYY-MM-DD-<slug>.md
 ## Judge synthesis
 <the full Phase C output from Step 8, verbatim>
 
+## Figures
+<🕊/🔥 verbatim output(s) from Step 9, if any fired; "none" if `figures: none`>
+
 ---
 Generated by psychodrama-protocol vX · LLM output is non-deterministic; this record documents this specific run.
 ```
@@ -722,6 +871,7 @@ verdict: <one-line summary of the Judge's verdict>
 key_assumptions:
   - <bulleted, drawn from T0/Canonical Intent + any accepted CONDITION premises from surviving perspectives>
   - ...
+figures: <none|🕊|🔥|both> (<trigger: STAGNATED|Contested|--summon|none>)
 record_file: ./consensus-runs/YYYY-MM-DD-<slug>.md
 
 ## Question
@@ -744,11 +894,14 @@ if it ran separately, Step 4a's — this is the one place the full dialectic is 
 ## Judge synthesis
 <the full duel-mode output from Step 4d, verbatim, including per-duel SURVIVAL + footnotes>
 
+## Figures
+<🕊/🔥 verbatim output(s) from Step 4e, if any fired; "none" if `figures: none`>
+
 ---
 Generated by psychodrama-protocol vX · LLM output is non-deterministic; this record documents this specific run.
 ```
 
-Save the file path — it is printed as the final line of Step 9's (or Step 4e's) output template (`Run record: ./consensus-runs/<file>.md`).
+Save the file path — it is printed as the final line of Step 10's (or Step 4f's) output template (`Run record: ./consensus-runs/<file>.md`).
 
 **Decision journal append.** After writing the record file, append ONE line to `./consensus-runs/INDEX.md` (create it with a header row if it doesn't exist yet):
 
@@ -765,7 +918,7 @@ The appended line:
 
 This runs regardless of whether `--save-adr` was passed — the journal is the running index of every recorded run, independent of ADR generation.
 
-### Step 11 — ADR file generation
+### Step 12 — ADR file generation
 
 By default, no ADR is generated. Review artifacts live in PR comments / notes, not in `docs/decisions/`.
 

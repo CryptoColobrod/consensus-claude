@@ -25,6 +25,8 @@ Vote-tag contract: statuses stay exactly the same 4 (AGREED / AGREED_WEAK / DISP
 
 Example composing all three: `T3: DISPUTED No benchmark exists for this workload [impact: critical]. ANCHOR: "materially outperforms". FLIP: a measured p99 comparison on production-shaped session data showing >=3x improvement.`
 
+One more tag: `REFRAME: <the question behind the question>` — raise it when the thesis itself is mis-posed (any answer would be moot because the frame is wrong); if two or more roles raise REFRAME on the same thesis, the orchestrator summons the outside-the-frame figure early.
+
 T0 is the question's foundational premise — vote on it with full seriousness; a DISPUTED T0 challenges the entire frame.
 
 Out-of-lens abstention: if a thesis falls outside correctness/readability/idiomaticity/simplification (e.g. it's a pure security or maintainability question), do not rubber-stamp an opinion. Write `T<n>: AGREED — outside my lens, deferring to the relevant role` (or `NEEDS_CLARIFICATION` if you genuinely cannot even defer safely). The Judge weighs votes by relevance.

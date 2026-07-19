@@ -46,7 +46,8 @@ The core insight is transplanted straight from the therapy stage: a problem beco
 | The empty chair | the Judge must name the direction nobody was minted to defend |
 | Surplus reality | duel mode: the problem generates voices that do not exist until staged |
 | Role reversal | perspective swap *(roadmap)* |
-| The figure above the system | outside-the-frame voice on deadlock *(roadmap)* |
+| The figure above the system | 🕊 the outside-the-frame voice — dissolves a deadlock from above |
+| The shadow / the tempter | 🔥 the transgressive voice — the suppressed option, staged at last |
 
 None of this is decoration. Each row is a mechanism you can read in SKILL.md — the stage directions are the source code.
 
@@ -193,7 +194,7 @@ The full negotiation goes into the run record, not the trace line. `--grain fine
 
 Plus two utility agents outside the vote: `Decomposer` (splits the question into theses, and surfaces the question's own unstated premise as T0 — a foundational thesis voted like any other) and `Judge` (aggregates, then synthesizes).
 
-**Votes carry structured tags.** Statuses stay at 4 — tags ride alongside them. `FLIP:` is mandatory on every `DISPUTED` vote and names the evidence that would reverse it; `ANCHOR: "quote"` grounds a vote in a specific piece of the question or context instead of a bare opinion; `[impact: critical|moderate|minor]` ranks how much the outcome hinges on that thesis. The Judge weights disputes carrying a `FLIP:` tag higher, flags votes with no `ANCHOR:`, and prioritizes critical-impact conflicts first.
+**Votes carry structured tags.** Statuses stay at 4 — tags ride alongside them. `FLIP:` is mandatory on every `DISPUTED` vote and names the evidence that would reverse it; `ANCHOR: "quote"` grounds a vote in a specific piece of the question or context instead of a bare opinion; `[impact: critical|moderate|minor]` ranks how much the outcome hinges on that thesis; `REFRAME:` lets any voter name the question behind the question when a thesis is mis-posed — ≥2 roles raising `REFRAME:` on the same thesis summons 🕊 the outside-the-frame voice early, and the reframe feeds the R2 re-vote. The Judge weights disputes carrying a `FLIP:` tag higher, flags votes with no `ANCHOR:`, and prioritizes critical-impact conflicts first.
 
 **Panel invariants** (the panel's constitution):
 - **Adversarial Presence** — the panel must contain ≥1 adversarial role (Skeptic by default).
@@ -219,6 +220,9 @@ The golden-standard roster above is active by default. An optional shelf of role
 | `Scope-cutter` | Trims MVP excess, names what to cut | Risk of over-build, scope creep |
 | `Simplicity-advocate` | Complexity beyond the value it delivers is a bug | Author/panel prone to over-engineering |
 | `Domain-expert` | Pluggable domain lens | A narrow, specialized domain |
+| `Resource-keeper` | Guards working assets — the appreciative-inquiry counterweight to a panel that's structurally careless about what already works | Panel is critic-heavy, risk of discarding a working asset |
+
+`Resource-keeper` is the shelf's first role shipped as an actual agent file (opt-in via `--roles "+Resource-keeper"`, not active by default). Where every other default role is built to find fault, Resource-keeper's mandate runs the other way: it must name at least one thing that must survive regardless of which side wins the vote.
 
 Enabling a role means editing the roster list in `SKILL.md`'s Protocol block — markdown is the config, there's no loader and no runtime machinery to route around. Skeptic is the default satisfier of the Adversarial Presence invariant; `Security` and `Scope-cutter` also qualify if you swap Skeptic out.
 
@@ -239,6 +243,22 @@ The duel structure follows the author's psychodrama practice: every idea deserve
 Cost is comparable to a full run (~9-13 calls). `--plan` is recommended here even more than in panel mode — steering which perspectives get minted before paying for duels is cheaper than re-running them. `--emergent` is now a deprecated alias for `--mode duels`.
 
 A full real duel run — four critics with biographies independently converging on a verdict that broke the question's own premise: [`examples/duel-demo.md`](examples/duel-demo.md).
+
+---
+
+## The figures (when the stage is stuck)
+
+In psychodrama, when a protagonist is truly stuck, the director brings in a figure from beyond the role system — God, the fool, the ancestor — someone with no stake in the dispute as posed. The protocol has two: one dissolves the deadlock from above, one breaks it from below.
+
+🕊 **The outside-the-frame voice** exits the dispute's terms entirely and reports what the deadlock itself reveals — the view from outside, a `THE REFRAME:` line, and `Dissolves if:` conditions.
+
+🔥 **The transgressive voice** names the one suppressed option nobody dared put on the table: why it's taboo, its honest price, and what it buys.
+
+Both are non-voting — they don't cast AGREED/DISPUTED, they reframe or transgress. **Triggers:** a `REFRAME:` cluster (≥2 roles on one thesis), theses marked `stagnated`, or a `Contested` verdict. `--summon above|below|both` forces a figure regardless of trigger state; `--no-figures` suppresses both. Cost: +1-2 calls, only on deadlock — never on a clean run.
+
+As with every role in this protocol, the agent files are the source: tune your own figures in `~/.claude/agents/psychodrama-*.md`.
+
+Same release ships the shelf's first role as an actual agent file, `Resource-keeper` — the appreciative-inquiry counterweight to a panel of critics — see [Composable panel](#composable-panel).
 
 ---
 
@@ -279,6 +299,8 @@ or say "claude consensus" / "consensus panel" in a session.
 | `--mode` | Force `panel` or `duels` instead of relying on triage |
 | `--grain` | `fine` or `coarse` — biases the Lumper/Splitter grain negotiation during decomposition |
 | `--emergent` | Deprecated alias for `--mode duels` |
+| `--summon` | `above`, `below`, or `both` — forces a figure regardless of trigger state |
+| `--no-figures` | Suppresses both figures even if a deadlock trigger fires |
 
 **External critic (optional, any model):** used only as the anti-groupthink fallback when the panel goes fully unanimous on a security-adjacent thesis. Reached via a small ladder: configure any CLI that takes a prompt and prints text (one line in `SKILL.md`'s Protocol block — the [`gemini` CLI](https://github.com/google-gemini/gemini-cli) works out of the box as the default worked example), or skip the install entirely and use the built-in copy-paste handoff — the skill prints the critic prompt for you to paste into any other model you have, then paste the reply back. Decline either way and the run continues gracefully, with the status reported honestly (e.g. `skipped (user_declined)`) rather than failing.
 
